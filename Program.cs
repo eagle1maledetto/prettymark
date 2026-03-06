@@ -181,20 +181,19 @@ class MainForm : Form
         // Handle JS messages
         webView.CoreWebView2.WebMessageReceived += OnWebMessage;
 
-        // Intercept navigation: handle file drops and block external navigation
+        // Intercept navigation: only allow initial page load, block everything else
         webView.CoreWebView2.NavigationStarting += (s, e) =>
         {
+            if (e.Uri == "https://app.local/index.html") return;
+
+            e.Cancel = true;
+
             if (e.Uri.StartsWith("file:///"))
             {
-                e.Cancel = true;
                 var path = new Uri(e.Uri).LocalPath;
                 var ext = Path.GetExtension(path).ToLowerInvariant();
                 if (new[] { ".md", ".markdown", ".txt" }.Contains(ext))
                     BeginInvoke(() => OpenTab(path));
-            }
-            else if (!e.Uri.StartsWith("https://app.local/"))
-            {
-                e.Cancel = true;
             }
         };
 

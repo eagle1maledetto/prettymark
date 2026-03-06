@@ -77,7 +77,8 @@ PrettyMark.exe
 
 - **Rendering pipeline:** Program.cs reads .md file → passes content to WebView2 via `ExecuteScriptAsync()` → `assets/index.html` renders with marked.js + highlight.js
 - **Tab system:** C# manages tab state (`TabInfo` list + `activeTabId`), each tab has its own `FileSystemWatcher`. JS manages tab bar + drawer UI, synchronized via `postMessage`.
-- **Drag & drop:** `AllowExternalDrop = true` lets Chromium handle the drop natively. `NewWindowRequested` handler intercepts the new-window attempt, extracts the file path, and opens it as a tab. `NavigationStarting` handler as fallback.
+- **Drag & drop:** `AllowExternalDrop = true` lets Chromium handle the drop natively. `NewWindowRequested` handler intercepts the new-window attempt, extracts the file path, and opens it as a tab.
+- **Navigation guard:** `NavigationStarting` allows only `https://app.local/index.html`; all other navigations are blocked. `file:///` URIs with valid extensions are redirected to `OpenTab`. This prevents Chromium from resolving dropped filenames as relative URLs (e.g. `README.md` → `https://app.local/README.md`).
 - **Live reload:** `FileSystemWatcher` per tab; debounced handler re-reads and posts updated content (active tab only)
 - **Drawer:** Collapsible sidebar (240px) with file list. State persisted in AppData. Toggle via `Ctrl+B` or hamburger button.
 - **Dark mode:** CSS class toggle + stylesheet swap (light/dark variants for both markdown and highlight.js). Persisted in AppData.
