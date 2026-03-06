@@ -33,5 +33,9 @@
   "welcome_subtitle": "Visualizzatore Markdown con ricaricamento automatico",
   "welcome_open_instruction": "Apri un file Markdown: <strong>File \u2192 Apri</strong> (Ctrl+O)",
   "welcome_drag_instruction": "oppure trascina un file qui",
-  "about_description": "Visualizzatore Markdown con ricaricamento<br>automatico ed evidenziazione della sintassi."
+  "about_description": "Visualizzatore Markdown con ricaricamento<br>automatico ed evidenziazione della sintassi.",
+  "menu_recent": "File &recenti",
+  "menu_recent_empty": "(Nessun file recente)",
+  "menu_recent_clear": "Cancella file recenti",
+  "menu_print": "Stam&pa"
 }

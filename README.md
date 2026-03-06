@@ -16,6 +16,9 @@ A lightweight, native Markdown viewer for Windows with live reload and syntax hi
 - **Drag & drop** — drop `.md` files directly into the window
 - **Find in page** — `Ctrl+F` with match highlighting and navigation
 - **Dark mode** — toggle with `Ctrl+D`, preference is remembered
+- **Print** — `Ctrl+P` opens the native print dialog, prints only the rendered content
+- **Recent files** — File → Recent Files submenu, remembers the last 10 opened files
+- **Session persistence** — open tabs are restored when the app is relaunched
 - **Multi-language** — 12 languages (EN, IT, ES, PT, FR, DE, ZH, JA, KO, RU, TR, UK), auto-detects system language, switchable at runtime via View → Language
 - **Full screen** — `F11` toggle
 - **Zoom** — `Ctrl++` / `Ctrl+-` / `Ctrl+0`
@@ -64,6 +67,7 @@ PrettyMark.exe
 |----------|--------|
 | `Ctrl+O` | Open file |
 | `Ctrl+W` | Close current tab |
+| `Ctrl+P` | Print |
 | `Ctrl+F` | Find in page |
 | `Ctrl+D` | Toggle dark mode |
 | `Ctrl+B` | Toggle sidebar |
@@ -78,7 +82,7 @@ PrettyMark is a WinForms application that hosts a [WebView2](https://developer.m
 
 - **Tab management** is handled in C# — each open file gets its own `FileSystemWatcher` for live reload
 - **Drag & drop** uses native Chromium drop handling, intercepted via `NewWindowRequested` to open files as tabs
-- **Settings** (dark mode, sidebar state, language) are persisted in `%AppData%\PrettyMark\settings.json`
+- **Settings** (dark mode, sidebar state, language, recent files, session tabs) are persisted in `%AppData%\PrettyMark\settings.json`
 - **i18n** uses JSON files in `assets/lang/` — C# loads the JSON and injects strings into JS via `setStrings()`. Adding a language is just adding a new JSON file
 
 ## License

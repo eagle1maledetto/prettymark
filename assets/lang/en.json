@@ -33,5 +33,9 @@
   "welcome_subtitle": "Markdown viewer with live reload",
   "welcome_open_instruction": "Open a Markdown file: <strong>File \u2192 Open</strong> (Ctrl+O)",
   "welcome_drag_instruction": "or drag and drop a file here",
-  "about_description": "Markdown viewer with live reload<br>and syntax highlighting."
+  "about_description": "Markdown viewer with live reload<br>and syntax highlighting.",
+  "menu_recent": "&Recent Files",
+  "menu_recent_empty": "(No recent files)",
+  "menu_recent_clear": "Clear Recent Files",
+  "menu_print": "&Print"
 }

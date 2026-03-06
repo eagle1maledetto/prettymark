@@ -18,6 +18,16 @@ class AppSettings
     public bool DarkMode { get; set; }
     public bool DrawerOpen { get; set; } = true;
     public string Language { get; set; } = "";
+    public List<string> RecentFiles { get; set; } = new();
+    public List<string> SessionFiles { get; set; } = new();
+    public string SessionActiveFile { get; set; } = "";
+
+    public void AddRecentFile(string path)
+    {
+        RecentFiles.RemoveAll(p => string.Equals(p, path, StringComparison.OrdinalIgnoreCase));
+        RecentFiles.Insert(0, path);
+        if (RecentFiles.Count > 10) RecentFiles.RemoveRange(10, RecentFiles.Count - 10);
+    }
 
     private static readonly string SettingsPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -101,9 +111,13 @@ class MainForm : Form
 
     // Menu item references for translation updates
     private ToolStripMenuItem fileMenu, openItem, closeTabItem, exitItem;
+    private ToolStripMenuItem recentMenu, printItem;
     private ToolStripMenuItem editMenu, findItem;
     private ToolStripMenuItem viewMenu, zoomInItem, zoomOutItem, resetZoomItem, fullScreenItem;
     private ToolStripMenuItem langMenu, helpMenu, aboutItem;
+
+    // Session restore
+    private string _initialFilePath;
 
     public MainForm(string filePath)
     {
@@ -123,8 +137,7 @@ class MainForm : Form
         SetupMenu();
         InitializeWebView();
 
-        if (filePath != null)
-            BeginInvoke(() => OpenTab(filePath));
+        _initialFilePath = filePath;
     }
 
     private void SetupMenu()
@@ -135,10 +148,17 @@ class MainForm : Form
         fileMenu = new ToolStripMenuItem();
         openItem = new ToolStripMenuItem("", null, (s, e) => OpenFile())
         { ShortcutKeys = Keys.Control | Keys.O };
+        recentMenu = new ToolStripMenuItem();
+        printItem = new ToolStripMenuItem("", null, (s, e) => PrintDocument())
+        { ShortcutKeys = Keys.Control | Keys.P };
         closeTabItem = new ToolStripMenuItem("", null, (s, e) => { if (activeTabId != null) CloseTab(activeTabId); })
         { ShortcutKeys = Keys.Control | Keys.W };
         exitItem = new ToolStripMenuItem("", null, (s, e) => Close());
         fileMenu.DropDownItems.Add(openItem);
+        fileMenu.DropDownItems.Add(recentMenu);
+        fileMenu.DropDownItems.Add(new ToolStripSeparator());
+        fileMenu.DropDownItems.Add(printItem);
+        fileMenu.DropDownItems.Add(new ToolStripSeparator());
         fileMenu.DropDownItems.Add(closeTabItem);
         fileMenu.DropDownItems.Add(new ToolStripSeparator());
         fileMenu.DropDownItems.Add(exitItem);
@@ -265,6 +285,12 @@ class MainForm : Form
         // Apply drawer state
         ExecuteJs($"setDrawerOpen({(settings.DrawerOpen ? "true" : "false")})");
 
+        await RestoreSession();
+        if (_initialFilePath != null)
+        {
+            OpenTab(_initialFilePath);
+            _initialFilePath = null;
+        }
         if (tabs.Count == 0)
         {
             await webView.ExecuteScriptAsync("showWelcome()");
@@ -303,6 +329,7 @@ class MainForm : Form
                 {
                     case "open": OpenFile(); break;
                     case "close_tab": if (activeTabId != null) CloseTab(activeTabId); break;
+                    case "print": PrintDocument(); break;
                     case "fullscreen": ToggleFullscreen(); break;
                     case "dark_mode": SetDarkMode(!darkModeItem.Checked); break;
                     case "sidebar": ToggleDrawer(); break;
@@ -356,6 +383,10 @@ class MainForm : Form
         tabs.Add(tab);
         activeTabId = tab.Id;
 
+        settings.AddRecentFile(path);
+        SaveSession();
+        RebuildRecentMenu();
+
         // Send tab info to JS
         var tabJson = JsonSerializer.Serialize(new { id = tab.Id, name = tab.FileName, path = Path.GetDirectoryName(tab.FilePath) });
         await webView.ExecuteScriptAsync($"addTab({tabJson})");
@@ -371,6 +402,7 @@ class MainForm : Form
         if (tab == null || tab.Id == activeTabId) return;
 
         activeTabId = tabId;
+        SaveSession();
         await webView.ExecuteScriptAsync($"activateTab({JsonSerializer.Serialize(tabId)})");
         await RenderTab(tab);
         UpdateTitle(tab);
@@ -407,6 +439,7 @@ class MainForm : Form
                 await webView.ExecuteScriptAsync("showWelcome()");
             }
         }
+        SaveSession();
     }
 
     private async Task RenderTab(TabInfo tab)
@@ -460,6 +493,96 @@ class MainForm : Form
             });
         };
         debounceTimer.Start();
+    }
+
+    private void RebuildRecentMenu()
+    {
+        recentMenu.DropDownItems.Clear();
+        var recent = settings.RecentFiles.Where(File.Exists).Take(10).ToList();
+        if (recent.Count == 0)
+        {
+            var emptyItem = new ToolStripMenuItem(T("menu_recent_empty")) { Enabled = false };
+            recentMenu.DropDownItems.Add(emptyItem);
+        }
+        else
+        {
+            foreach (var path in recent)
+            {
+                var item = new ToolStripMenuItem(Path.GetFileName(path)) { ToolTipText = path, Tag = path };
+                item.Click += (s, e) => OpenTab((string)((ToolStripMenuItem)s).Tag);
+                recentMenu.DropDownItems.Add(item);
+            }
+            recentMenu.DropDownItems.Add(new ToolStripSeparator());
+            var clearItem = new ToolStripMenuItem(T("menu_recent_clear"));
+            clearItem.Click += (s, e) =>
+            {
+                settings.RecentFiles.Clear();
+                settings.Save();
+                RebuildRecentMenu();
+            };
+            recentMenu.DropDownItems.Add(clearItem);
+        }
+    }
+
+    private void PrintDocument()
+    {
+        if (activeTabId == null) return;
+        ExecuteJs("window.print()");
+    }
+
+    private void SaveSession()
+    {
+        settings.SessionFiles = tabs.Select(t => t.FilePath).ToList();
+        var activeTab = tabs.FirstOrDefault(t => t.Id == activeTabId);
+        settings.SessionActiveFile = activeTab?.FilePath ?? "";
+        settings.Save();
+    }
+
+    private async Task RestoreSession()
+    {
+        var files = settings.SessionFiles.Where(File.Exists).ToList();
+        if (files.Count == 0) return;
+
+        string activeFilePath = settings.SessionActiveFile;
+        string lastTabId = null;
+
+        foreach (var path in files)
+        {
+            var tab = new TabInfo
+            {
+                Id = Guid.NewGuid().ToString("N"),
+                FilePath = path,
+                FileName = Path.GetFileName(path)
+            };
+
+            var dir = Path.GetDirectoryName(path);
+            var file = Path.GetFileName(path);
+            tab.Watcher = new FileSystemWatcher(dir, file) { NotifyFilter = NotifyFilters.LastWrite };
+            tab.Watcher.Changed += (s, e) => OnFileChanged(tab.Id);
+            tab.Watcher.EnableRaisingEvents = true;
+
+            tabs.Add(tab);
+
+            var tabJson = JsonSerializer.Serialize(new { id = tab.Id, name = tab.FileName, path = Path.GetDirectoryName(tab.FilePath) });
+            await webView.ExecuteScriptAsync($"addTab({tabJson})");
+
+            if (string.Equals(path, activeFilePath, StringComparison.OrdinalIgnoreCase))
+                lastTabId = tab.Id;
+            else if (lastTabId == null)
+                lastTabId = tab.Id;
+        }
+
+        if (lastTabId != null)
+        {
+            activeTabId = lastTabId;
+            await webView.ExecuteScriptAsync($"activateTab({JsonSerializer.Serialize(lastTabId)})");
+            var activeTab = tabs.FirstOrDefault(t => t.Id == lastTabId);
+            if (activeTab != null)
+            {
+                await RenderTab(activeTab);
+                UpdateTitle(activeTab);
+            }
+        }
     }
 
     private void ToggleFullscreen()
@@ -550,6 +673,9 @@ class MainForm : Form
     {
         fileMenu.Text = T("menu_file");
         openItem.Text = T("menu_open");
+        recentMenu.Text = T("menu_recent");
+        RebuildRecentMenu();
+        printItem.Text = T("menu_print");
         closeTabItem.Text = T("menu_close_tab");
         exitItem.Text = T("menu_exit");
         editMenu.Text = T("menu_edit");

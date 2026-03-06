@@ -171,6 +171,17 @@ mark.find-match { background: #fff2b0; color: inherit; border-radius: 2px; }
 body.dark mark.find-match { background: #6e5e14; }
 mark.find-match.current { background: #f9826c; }
 body.dark mark.find-match.current { background: #b35c44; }
+
+/* Print */
+@media print {
+    #drawer, #tab-bar, #status-bar, #find-bar { display: none !important; }
+    #app { display: block; }
+    #main { display: block; height: auto; }
+    #content-area { overflow: visible; height: auto; zoom: 1 !important; }
+    body { overflow: visible; background: #fff !important; }
+    body.dark { background: #fff !important; color: #1f2328 !important; }
+    .markdown-body { padding: 0; max-width: none; }
+}
 </style>
 </head>
 <body>
@@ -589,6 +600,10 @@ document.addEventListener('keydown', function(e) {
     else if (e.ctrlKey && e.key === 'b') {
         e.preventDefault();
         window.chrome.webview.postMessage({ type: 'shortcut', action: 'sidebar' });
+    }
+    else if (e.ctrlKey && e.key === 'p') {
+        e.preventDefault();
+        window.chrome.webview.postMessage({ type: 'shortcut', action: 'print' });
     }
     else if (e.ctrlKey && (e.key === '+' || e.key === '=')) {
         e.preventDefault();

@@ -15,8 +15,11 @@ Renders `.md` files in a native WinForms window using WebView2 (EdgeChromium), w
 - Collapsible sidebar (drawer) with list of open files
 - Drag & drop: native Chromium drop intercepted via `NewWindowRequested` (opens as new tab)
 - Find bar (`Ctrl+F`): DOM-based text search with highlight, match counter, next/prev navigation
-- Native menu bar: File → Open / Close Tab, Edit → Find, View → Dark Mode / Sidebar / Zoom / Full Screen, ? → About
-- Keyboard shortcuts (JS `keydown` → `postMessage`): `Ctrl+O` open, `Ctrl+W` close tab, `Ctrl+F` find, `Ctrl+D` dark mode, `Ctrl+B` sidebar, `Ctrl++`/`Ctrl+-`/`Ctrl+0` zoom, `F11` fullscreen
+- Print (`Ctrl+P`): native print dialog via `window.print()`, `@media print` CSS hides UI chrome
+- Recent Files: File → Recent Files submenu, last 10 files, persisted in AppData
+- Session persistence: open tabs and active tab restored on relaunch
+- Native menu bar: File → Open / Recent Files / Print / Close Tab, Edit → Find, View → Dark Mode / Sidebar / Zoom / Full Screen, ? → About
+- Keyboard shortcuts (JS `keydown` → `postMessage`): `Ctrl+O` open, `Ctrl+W` close tab, `Ctrl+P` print, `Ctrl+F` find, `Ctrl+D` dark mode, `Ctrl+B` sidebar, `Ctrl++`/`Ctrl+-`/`Ctrl+0` zoom, `F11` fullscreen
 - Welcome screen when launched without arguments
 - Multi-language support (i18n): 12 languages, auto-detect system language, runtime switching via View → Language, preference persisted in AppData
 
@@ -85,10 +88,13 @@ PrettyMark.exe
 - **Drawer:** Collapsible sidebar (240px) with file list. State persisted in AppData. Toggle via `Ctrl+B` or hamburger button.
 - **Dark mode:** CSS class toggle + stylesheet swap (light/dark variants for both markdown and highlight.js). Persisted in AppData.
 - **Zoom:** CSS `zoom` property on `#content-area`, controlled via menu/shortcuts/slider in status bar
-- **Menu:** WinForms `MenuStrip` with File → Open/Close Tab, Edit → Find, View → Dark Mode/Sidebar/Zoom/Full Screen, ? → About. `ShortcutKeys` on items as fallback; primary shortcut handling is JS-side.
+- **Print:** `window.print()` via JS; `@media print` CSS block hides drawer, tab bar, status bar, find bar and forces white background. Content area overflow set to visible for multi-page printing.
+- **Recent Files:** `AppSettings.RecentFiles` (List<string>, max 10). `AddRecentFile()` deduplicates (case-insensitive) and caps at 10. Submenu rebuilt on open/language-switch. "Clear Recent Files" item at bottom.
+- **Session persistence:** `AppSettings.SessionFiles` + `SessionActiveFile`. `SaveSession()` called in OpenTab/CloseTab/SwitchTab. `RestoreSession()` runs in `OnNavigationCompleted` before `_initialFilePath` (CLI arg adds to session, doesn't replace). Inline tab creation (no OpenTab call) to avoid recursive saves.
+- **Menu:** WinForms `MenuStrip` with File → Open/Recent Files/Print/Close Tab, Edit → Find, View → Dark Mode/Sidebar/Zoom/Full Screen, ? → About. `ShortcutKeys` on items as fallback; primary shortcut handling is JS-side.
 - **Keyboard shortcuts:** `AreBrowserAcceleratorKeysEnabled = false` → keys go to web content as JS `keydown`. JS handler uses `postMessage({ type: 'shortcut', action })` for C# actions; zoom/find handled directly in JS.
 - **Find bar:** DOM-based search (no `window.find()` — it steals focus in WebView2). Wraps matches in `<mark>` elements, tracks current index, scrolls to match.
 - **Menu auto-close:** JS `mousedown` sends `postMessage({ type: 'click' })`, C# calls `HideDropDown()` only on visible dropdowns (calling on hidden ones steals focus from WebView2).
 - **Assets:** bundled via `<Content Include="assets\**\*">` in .csproj, copied to output directory
 - **i18n:** JSON files in `assets/lang/` (one per language, keyed `snake_case`). C# loads via `LoadTranslationsStatic()`, resolves language via `ResolveLanguageStatic()` (settings → system UI culture → "en" fallback). `T(key)` helper in both C# and JS. C# injects strings into JS via `ExecuteScriptAsync("setStrings({json})")`. `_applyStrings()` updates DOM elements. Adding a language = adding a JSON file (auto-discovered via directory scan).
-- **Messages JS→C#:** `open_url`, `switch_tab`, `close_tab`, `shortcut`, `click`, `drawer_toggled`
+- **Messages JS→C#:** `open_url`, `switch_tab`, `close_tab`, `shortcut` (incl. `print`), `click`, `drawer_toggled`
