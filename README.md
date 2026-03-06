@@ -30,8 +30,8 @@ A lightweight, native Markdown viewer for Windows with live reload and syntax hi
 
 | Package | Description |
 |---------|-------------|
-| [PrettyMark-portable-win-x64.zip](https://gitlab.com/eagle1/prettymark/uploads/e8b1d8c0a95bff0e8adf327c2e899b5c/PrettyMark-portable-win-x64.zip) | Portable — unzip and run, no installation needed |
-| [PrettyMark-1.0.0.0-win-x64.msix](https://gitlab.com/eagle1/prettymark/uploads/24788925364db37aac340562378c6523/PrettyMark-1.0.0.0-win-x64.msix) | MSIX installer — Start menu, file associations, uninstaller |
+| [PrettyMark-portable-win-x64.zip](https://gitlab.com/api/v4/projects/eagle1%2Fprettymark/packages/generic/prettymark/1.0.0/PrettyMark-portable-win-x64.zip) | Portable — unzip and run, no installation needed |
+| [PrettyMark-1.0.0.0-win-x64.msix](https://gitlab.com/api/v4/projects/eagle1%2Fprettymark/packages/generic/prettymark/1.0.0/PrettyMark-1.0.0.0-win-x64.msix) | MSIX installer — Start menu, file associations, uninstaller |
 
 ## Screenshot
 
