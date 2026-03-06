@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -16,6 +17,7 @@ class AppSettings
 {
     public bool DarkMode { get; set; }
     public bool DrawerOpen { get; set; } = true;
+    public string Language { get; set; } = "";
 
     private static readonly string SettingsPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -61,7 +63,13 @@ static class Program
         string filePath = args.Length > 0 ? Path.GetFullPath(args[0]) : null;
         if (filePath != null && !File.Exists(filePath))
         {
-            MessageBox.Show($"File not found: {filePath}", "PrettyMark",
+            // Load minimal translations for error message
+            var errorStrings = MainForm.LoadTranslationsStatic(
+                MainForm.ResolveLanguageStatic(AppSettings.Load().Language));
+            var msg = string.Format(
+                errorStrings.GetValueOrDefault("error_file_not_found", "File not found: {0}"),
+                filePath);
+            MessageBox.Show(msg, errorStrings.GetValueOrDefault("app_name", "PrettyMark"),
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
             return;
         }
@@ -87,10 +95,23 @@ class MainForm : Form
     private readonly List<TabInfo> tabs = new();
     private string activeTabId;
 
+    // i18n state
+    private Dictionary<string, string> _strings = new();
+    private string _currentLang = "en";
+
+    // Menu item references for translation updates
+    private ToolStripMenuItem fileMenu, openItem, closeTabItem, exitItem;
+    private ToolStripMenuItem editMenu, findItem;
+    private ToolStripMenuItem viewMenu, zoomInItem, zoomOutItem, resetZoomItem, fullScreenItem;
+    private ToolStripMenuItem langMenu, helpMenu, aboutItem;
+
     public MainForm(string filePath)
     {
         settings = AppSettings.Load();
-        Text = "PrettyMark";
+        _currentLang = ResolveLanguageStatic(settings.Language);
+        _strings = LoadTranslationsStatic(_currentLang);
+
+        Text = T("app_name");
         Size = new System.Drawing.Size(960, 800);
         MinimumSize = new System.Drawing.Size(400, 300);
         StartPosition = FormStartPosition.CenterScreen;
@@ -111,34 +132,32 @@ class MainForm : Form
         var menuStrip = new MenuStrip();
 
         // File
-        var fileMenu = new ToolStripMenuItem("&File");
-        fileMenu.DropDownItems.Add(new ToolStripMenuItem("&Open", null, (s, e) => OpenFile())
-        {
-            ShortcutKeys = Keys.Control | Keys.O
-        });
-        fileMenu.DropDownItems.Add(new ToolStripMenuItem("&Close Tab", null, (s, e) => { if (activeTabId != null) CloseTab(activeTabId); })
-        {
-            ShortcutKeys = Keys.Control | Keys.W
-        });
+        fileMenu = new ToolStripMenuItem();
+        openItem = new ToolStripMenuItem("", null, (s, e) => OpenFile())
+        { ShortcutKeys = Keys.Control | Keys.O };
+        closeTabItem = new ToolStripMenuItem("", null, (s, e) => { if (activeTabId != null) CloseTab(activeTabId); })
+        { ShortcutKeys = Keys.Control | Keys.W };
+        exitItem = new ToolStripMenuItem("", null, (s, e) => Close());
+        fileMenu.DropDownItems.Add(openItem);
+        fileMenu.DropDownItems.Add(closeTabItem);
         fileMenu.DropDownItems.Add(new ToolStripSeparator());
-        fileMenu.DropDownItems.Add("E&xit", null, (s, e) => Close());
+        fileMenu.DropDownItems.Add(exitItem);
 
         // Edit
-        var editMenu = new ToolStripMenuItem("&Edit");
-        editMenu.DropDownItems.Add(new ToolStripMenuItem("&Find", null, (s, e) => ExecuteJs("toggleFind()"))
-        {
-            ShortcutKeys = Keys.Control | Keys.F
-        });
+        editMenu = new ToolStripMenuItem();
+        findItem = new ToolStripMenuItem("", null, (s, e) => ExecuteJs("toggleFind()"))
+        { ShortcutKeys = Keys.Control | Keys.F };
+        editMenu.DropDownItems.Add(findItem);
 
         // View
-        var viewMenu = new ToolStripMenuItem("&View");
-        darkModeItem = new ToolStripMenuItem("&Dark Mode", null, (s, e) =>
+        viewMenu = new ToolStripMenuItem();
+        darkModeItem = new ToolStripMenuItem("", null, (s, e) =>
         {
             SetDarkMode(!darkModeItem.Checked);
         }) { ShortcutKeys = Keys.Control | Keys.D };
         viewMenu.DropDownItems.Add(darkModeItem);
 
-        drawerItem = new ToolStripMenuItem("Side&bar", null, (s, e) =>
+        drawerItem = new ToolStripMenuItem("", null, (s, e) =>
         {
             ToggleDrawer();
         }) { ShortcutKeys = Keys.Control | Keys.B };
@@ -146,23 +165,36 @@ class MainForm : Form
         viewMenu.DropDownItems.Add(drawerItem);
 
         viewMenu.DropDownItems.Add(new ToolStripSeparator());
-        viewMenu.DropDownItems.Add(new ToolStripMenuItem("Zoom &In", null,
-            (s, e) => ExecuteJs("zoomIn()")) { ShortcutKeys = Keys.Control | Keys.Oemplus });
-        viewMenu.DropDownItems.Add(new ToolStripMenuItem("Zoom &Out", null,
-            (s, e) => ExecuteJs("zoomOut()")) { ShortcutKeys = Keys.Control | Keys.OemMinus });
-        viewMenu.DropDownItems.Add(new ToolStripMenuItem("&Reset Zoom", null,
-            (s, e) => ExecuteJs("zoomReset()")) { ShortcutKeys = Keys.Control | Keys.D0 });
+
+        // Language submenu
+        langMenu = new ToolStripMenuItem();
+        viewMenu.DropDownItems.Add(langMenu);
+
         viewMenu.DropDownItems.Add(new ToolStripSeparator());
-        viewMenu.DropDownItems.Add(new ToolStripMenuItem("&Full Screen", null,
-            (s, e) => ToggleFullscreen()) { ShortcutKeys = Keys.F11 });
+        zoomInItem = new ToolStripMenuItem("", null,
+            (s, e) => ExecuteJs("zoomIn()")) { ShortcutKeys = Keys.Control | Keys.Oemplus };
+        zoomOutItem = new ToolStripMenuItem("", null,
+            (s, e) => ExecuteJs("zoomOut()")) { ShortcutKeys = Keys.Control | Keys.OemMinus };
+        resetZoomItem = new ToolStripMenuItem("", null,
+            (s, e) => ExecuteJs("zoomReset()")) { ShortcutKeys = Keys.Control | Keys.D0 };
+        viewMenu.DropDownItems.Add(zoomInItem);
+        viewMenu.DropDownItems.Add(zoomOutItem);
+        viewMenu.DropDownItems.Add(resetZoomItem);
+        viewMenu.DropDownItems.Add(new ToolStripSeparator());
+        fullScreenItem = new ToolStripMenuItem("", null,
+            (s, e) => ToggleFullscreen()) { ShortcutKeys = Keys.F11 };
+        viewMenu.DropDownItems.Add(fullScreenItem);
 
         // ?
-        var helpMenu = new ToolStripMenuItem("?");
-        helpMenu.DropDownItems.Add("&About PrettyMark", null, (s, e) => ExecuteJs("showAbout()"));
+        helpMenu = new ToolStripMenuItem();
+        aboutItem = new ToolStripMenuItem("", null, (s, e) => ExecuteJs("showAbout()"));
+        helpMenu.DropDownItems.Add(aboutItem);
 
         menuStrip.Items.AddRange(new ToolStripItem[] { fileMenu, editMenu, viewMenu, helpMenu });
         MainMenuStrip = menuStrip;
         Controls.Add(menuStrip);
+
+        ApplyMenuTranslations();
     }
 
     private async void InitializeWebView()
@@ -223,6 +255,9 @@ class MainForm : Form
     private async void OnNavigationCompleted(object sender, CoreWebView2NavigationCompletedEventArgs e)
     {
         if (!e.IsSuccess) return;
+
+        // Send i18n strings to JS
+        SendStringsToJs();
 
         // Apply dark mode from saved settings
         SetDarkMode(settings.DarkMode);
@@ -368,7 +403,7 @@ class MainForm : Form
             else
             {
                 activeTabId = null;
-                Text = "PrettyMark";
+                Text = T("app_name");
                 await webView.ExecuteScriptAsync("showWelcome()");
             }
         }
@@ -384,7 +419,8 @@ class MainForm : Form
 
     private void UpdateTitle(TabInfo tab)
     {
-        Text = tab != null ? $"{tab.FileName} \u2014 PrettyMark" : "PrettyMark";
+        var name = T("app_name");
+        Text = tab != null ? $"{tab.FileName} \u2014 {name}" : name;
     }
 
     private static string ReadFile(string path)
@@ -395,10 +431,12 @@ class MainForm : Form
 
     private void OpenFile()
     {
+        var mdLabel = T("dialog_filter_md");
+        var allLabel = T("dialog_filter_all");
         using var dialog = new OpenFileDialog
         {
-            Filter = "Markdown Files (*.md;*.markdown;*.txt)|*.md;*.markdown;*.txt|All Files (*.*)|*.*",
-            Title = "Open Markdown File"
+            Filter = $"{mdLabel} (*.md;*.markdown;*.txt)|*.md;*.markdown;*.txt|{allLabel} (*.*)|*.*",
+            Title = T("dialog_open_title")
         };
         if (dialog.ShowDialog() == DialogResult.OK)
             OpenTab(dialog.FileName);
@@ -463,6 +501,106 @@ class MainForm : Form
     {
         if (webView?.CoreWebView2 != null)
             await webView.ExecuteScriptAsync(script);
+    }
+
+    // --- i18n ---
+
+    private string T(string key)
+    {
+        return _strings.GetValueOrDefault(key, key);
+    }
+
+    public static Dictionary<string, string> LoadTranslationsStatic(string lang)
+    {
+        var langDir = Path.Combine(AppContext.BaseDirectory, "assets", "lang");
+        var path = Path.Combine(langDir, $"{lang}.json");
+        if (!File.Exists(path))
+            path = Path.Combine(langDir, "en.json");
+        try
+        {
+            if (File.Exists(path))
+                return JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(path));
+        }
+        catch { }
+        return new Dictionary<string, string>();
+    }
+
+    public static string ResolveLanguageStatic(string settingsLang)
+    {
+        if (!string.IsNullOrEmpty(settingsLang))
+            return settingsLang;
+
+        var uiLang = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
+        var langDir = Path.Combine(AppContext.BaseDirectory, "assets", "lang");
+        var path = Path.Combine(langDir, $"{uiLang}.json");
+        return File.Exists(path) ? uiLang : "en";
+    }
+
+    private List<string> GetAvailableLanguages()
+    {
+        var langDir = Path.Combine(AppContext.BaseDirectory, "assets", "lang");
+        if (!Directory.Exists(langDir)) return new List<string> { "en" };
+        return Directory.GetFiles(langDir, "*.json")
+            .Select(f => Path.GetFileNameWithoutExtension(f))
+            .OrderBy(l => l)
+            .ToList();
+    }
+
+    private void ApplyMenuTranslations()
+    {
+        fileMenu.Text = T("menu_file");
+        openItem.Text = T("menu_open");
+        closeTabItem.Text = T("menu_close_tab");
+        exitItem.Text = T("menu_exit");
+        editMenu.Text = T("menu_edit");
+        findItem.Text = T("menu_find");
+        viewMenu.Text = T("menu_view");
+        darkModeItem.Text = T("menu_dark_mode");
+        drawerItem.Text = T("menu_sidebar");
+        zoomInItem.Text = T("menu_zoom_in");
+        zoomOutItem.Text = T("menu_zoom_out");
+        resetZoomItem.Text = T("menu_reset_zoom");
+        fullScreenItem.Text = T("menu_fullscreen");
+        helpMenu.Text = T("menu_help");
+        aboutItem.Text = T("menu_about");
+
+        // Rebuild Language submenu
+        langMenu.Text = T("menu_language");
+        langMenu.DropDownItems.Clear();
+        foreach (var lang in GetAvailableLanguages())
+        {
+            var item = new ToolStripMenuItem(lang.ToUpperInvariant())
+            {
+                Checked = lang == _currentLang,
+                Tag = lang
+            };
+            item.Click += (s, e) =>
+            {
+                var l = (string)((ToolStripMenuItem)s).Tag;
+                if (l != _currentLang) SwitchLanguage(l);
+            };
+            langMenu.DropDownItems.Add(item);
+        }
+    }
+
+    private void SwitchLanguage(string lang)
+    {
+        _currentLang = lang;
+        settings.Language = lang;
+        settings.Save();
+        _strings = LoadTranslationsStatic(lang);
+        ApplyMenuTranslations();
+        SendStringsToJs();
+
+        // Update title
+        var activeTab = tabs.FirstOrDefault(t => t.Id == activeTabId);
+        UpdateTitle(activeTab);
+    }
+
+    private void SendStringsToJs()
+    {
+        var json = JsonSerializer.Serialize(_strings);
+        ExecuteJs($"setStrings({json})");
     }
 
     protected override void Dispose(bool disposing)

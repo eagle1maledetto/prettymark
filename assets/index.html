@@ -217,8 +217,52 @@ var _el = document.getElementById('content');
 var _zoom = 1.0;
 var _dark = false;
 var _drawerOpen = true;
+var _strings = {};
 
 marked.setOptions({ gfm: true, breaks: false });
+
+function T(key) { return _strings[key] || key; }
+
+function setStrings(obj) {
+    _strings = obj;
+    _applyStrings();
+}
+
+function _applyStrings() {
+    // Drawer header
+    var dh = document.querySelector('#drawer-header span');
+    if (dh) dh.textContent = T('drawer_header');
+    var dhBtn = document.querySelector('#drawer-header button');
+    if (dhBtn) dhBtn.title = T('tooltip_close_sidebar');
+
+    // Toggle sidebar button
+    var dt = document.getElementById('drawer-toggle');
+    if (dt) dt.title = T('tooltip_toggle_sidebar');
+
+    // Find bar
+    var fi = document.getElementById('find-input');
+    if (fi) fi.placeholder = T('find_placeholder');
+    var fp = document.getElementById('find-prev');
+    if (fp) fp.title = T('find_prev_tooltip');
+    var fn = document.getElementById('find-next');
+    if (fn) fn.title = T('find_next_tooltip');
+    var fc = document.getElementById('find-close');
+    if (fc) fc.title = T('find_close_tooltip');
+
+    // Zoom tooltips
+    var zOutSpan = document.querySelector('#zoom-control span[onclick="zoomOut()"]');
+    if (zOutSpan) zOutSpan.title = T('tooltip_zoom_out');
+    var zInSpan = document.querySelector('#zoom-control span[onclick="zoomIn()"]');
+    if (zInSpan) zInSpan.title = T('tooltip_zoom_in');
+
+    // Re-render welcome/about if visible
+    if (_el.querySelector('h1') && _el.querySelector('h1').textContent === 'PrettyMark' &&
+        _el.style.cssText.indexOf('justify-content') !== -1) {
+        showWelcome();
+    }
+    var aboutEl = document.getElementById('prettymark-about');
+    if (aboutEl) { aboutEl.remove(); showAbout(); }
+}
 
 function setDarkMode(on) {
     _dark = on;
@@ -243,11 +287,11 @@ function showWelcome() {
     _el.style.cssText = 'display:flex;justify-content:center;align-items:center;min-height:80vh;';
     _el.innerHTML =
         '<div style="text-align:center;">' +
-        '<h1 style="border:none;padding:0;">PrettyMark</h1>' +
-        '<p style="color:#656d76;font-size:18px;">Markdown viewer with live reload</p>' +
+        '<h1 style="border:none;padding:0;">' + T('app_name') + '</h1>' +
+        '<p style="color:#656d76;font-size:18px;">' + T('welcome_subtitle') + '</p>' +
         '<hr style="margin:24px auto;width:200px;">' +
-        '<p>Open a Markdown file: <strong>File \u2192 Open</strong> (Ctrl+O)</p>' +
-        '<p style="color:#656d76;">or drag and drop a file here</p>' +
+        '<p>' + T('welcome_open_instruction') + '</p>' +
+        '<p style="color:#656d76;">' + T('welcome_drag_instruction') + '</p>' +
         '</div>';
 }
 
@@ -368,8 +412,8 @@ function showAbout() {
         + '<button id="prettymark-about-close" style="position:absolute;top:8px;right:8px;width:28px;height:28px;border:none;background:rgba(0,0,0,0.3);color:#fff;font-size:18px;line-height:1;border-radius:6px;cursor:pointer;z-index:1;">&times;</button>'
         + '<div style="background:' + (bg === '#fff' ? '#f6f8fa' : '#0d1117') + ';padding:24px;flex-shrink:0;"><img src="logo.png" alt="PrettyMark" style="max-width:100%;max-height:40vh;display:block;margin:0 auto;"></div>'
         + '<div style="padding:20px 32px 28px;">'
-        + '<h2 style="margin:0 0 8px 0;color:' + fg + ';">PrettyMark</h2>'
-        + '<p style="margin:0 0 12px 0;color:' + sub + ';font-size:14px;">Markdown viewer with live reload<br>and syntax highlighting.</p>'
+        + '<h2 style="margin:0 0 8px 0;color:' + fg + ';">' + T('app_name') + '</h2>'
+        + '<p style="margin:0 0 12px 0;color:' + sub + ';font-size:14px;">' + T('about_description') + '</p>'
         + '<a href="https://gitlab.com/eagle1/prettymark" style="color:' + link + ';font-size:14px;">gitlab.com/eagle1/prettymark</a>'
         + '<br><br><button id="prettymark-about-ok" style="padding:6px 20px;border:1px solid ' + btnBorder + ';border-radius:6px;background:' + btnBg + ';color:' + fg + ';cursor:pointer;font-size:14px;">OK</button>'
         + '</div></div>';
@@ -465,7 +509,7 @@ function _showCurrentMatch() {
 function _updateFindCount() {
     var el = document.getElementById('find-count');
     if (_findMatches.length === 0) {
-        el.textContent = document.getElementById('find-input').value ? 'No results' : '';
+        el.textContent = document.getElementById('find-input').value ? T('find_no_results') : '';
     } else {
         el.textContent = (_findCurrent + 1) + '/' + _findMatches.length;
     }

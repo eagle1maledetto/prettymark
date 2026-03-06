@@ -18,6 +18,7 @@ Renders `.md` files in a native WinForms window using WebView2 (EdgeChromium), w
 - Native menu bar: File → Open / Close Tab, Edit → Find, View → Dark Mode / Sidebar / Zoom / Full Screen, ? → About
 - Keyboard shortcuts (JS `keydown` → `postMessage`): `Ctrl+O` open, `Ctrl+W` close tab, `Ctrl+F` find, `Ctrl+D` dark mode, `Ctrl+B` sidebar, `Ctrl++`/`Ctrl+-`/`Ctrl+0` zoom, `F11` fullscreen
 - Welcome screen when launched without arguments
+- Multi-language support (i18n): 12 languages, auto-detect system language, runtime switching via View → Language, preference persisted in AppData
 
 ## Project Structure
 
@@ -32,6 +33,7 @@ assets/marked.min.js           # Markdown parser (client-side)
 assets/highlight.min.js        # Syntax highlighting
 assets/highlight-github.min.css # Highlight.js github theme (light)
 assets/highlight-github-dark.min.css # Highlight.js github theme (dark)
+assets/lang/*.json             # i18n translation files (one per language)
 test.md                        # Test file for verifying rendering
 ```
 
@@ -88,4 +90,5 @@ PrettyMark.exe
 - **Find bar:** DOM-based search (no `window.find()` — it steals focus in WebView2). Wraps matches in `<mark>` elements, tracks current index, scrolls to match.
 - **Menu auto-close:** JS `mousedown` sends `postMessage({ type: 'click' })`, C# calls `HideDropDown()` only on visible dropdowns (calling on hidden ones steals focus from WebView2).
 - **Assets:** bundled via `<Content Include="assets\**\*">` in .csproj, copied to output directory
+- **i18n:** JSON files in `assets/lang/` (one per language, keyed `snake_case`). C# loads via `LoadTranslationsStatic()`, resolves language via `ResolveLanguageStatic()` (settings → system UI culture → "en" fallback). `T(key)` helper in both C# and JS. C# injects strings into JS via `ExecuteScriptAsync("setStrings({json})")`. `_applyStrings()` updates DOM elements. Adding a language = adding a JSON file (auto-discovered via directory scan).
 - **Messages JS→C#:** `open_url`, `switch_tab`, `close_tab`, `shortcut`, `click`, `drawer_toggled`
