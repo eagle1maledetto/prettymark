@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PrettyMark</title>
+<link id="theme-md" rel="stylesheet" href="github-markdown.css">
+<link id="theme-hl" rel="stylesheet" href="highlight-github.min.css">
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; padding: 0; background-color: #ffffff; transition: background-color 0.2s; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; overflow: hidden; }
+body.dark { background-color: #0d1117; }
+
+/* Layout */
+#app { display: flex; height: 100vh; }
+
+/* Drawer */
+#drawer {
+    width: 240px; min-width: 0; height: 100%; overflow-y: auto; overflow-x: hidden;
+    border-right: 1px solid #d1d9e0; background: #f6f8fa;
+    transition: width 0.2s ease, opacity 0.2s ease;
+    flex-shrink: 0;
+}
+#drawer.collapsed { width: 0; border-right: none; opacity: 0; pointer-events: none; }
+body.dark #drawer { background: #161b22; border-right-color: #30363d; }
+
+#drawer-header {
+    padding: 10px 12px; font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.5px; color: #656d76; border-bottom: 1px solid #d1d9e0;
+    display: flex; align-items: center; justify-content: space-between;
+}
+body.dark #drawer-header { color: #8b949e; border-bottom-color: #30363d; }
+
+#drawer-header button {
+    background: none; border: none; cursor: pointer; font-size: 16px; color: #656d76;
+    padding: 0 2px; line-height: 1;
+}
+body.dark #drawer-header button { color: #8b949e; }
+
+#drawer-list { padding: 4px 0; }
+
+.drawer-item {
+    padding: 6px 12px; cursor: pointer; display: flex; align-items: center;
+    justify-content: space-between; gap: 6px; border-left: 3px solid transparent;
+}
+.drawer-item:hover { background: #e8ebef; }
+body.dark .drawer-item:hover { background: #1c2129; }
+.drawer-item.active { border-left-color: #0969da; background: #ddf4ff; }
+body.dark .drawer-item.active { border-left-color: #4493f8; background: #1a2332; }
+
+.drawer-info { overflow: hidden; flex: 1; min-width: 0; }
+.drawer-filename {
+    display: block; font-size: 13px; font-weight: 500; color: #1f2328;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+body.dark .drawer-filename { color: #f0f6fc; }
+.drawer-path {
+    display: block; font-size: 10px; color: #656d76; margin-top: 1px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+body.dark .drawer-path { color: #8b949e; }
+
+.drawer-close {
+    flex-shrink: 0; width: 18px; height: 18px; line-height: 18px; text-align: center;
+    font-size: 14px; color: #656d76; border-radius: 3px; cursor: pointer;
+    opacity: 0; transition: opacity 0.1s;
+}
+.drawer-item:hover .drawer-close { opacity: 1; }
+.drawer-close:hover { background: #d1d9e0; color: #1f2328; }
+body.dark .drawer-close { color: #8b949e; }
+body.dark .drawer-close:hover { background: #30363d; color: #f0f6fc; }
+
+/* Main area */
+#main { flex: 1; display: flex; flex-direction: column; min-width: 0; height: 100%; }
+
+/* Tab bar */
+#tab-bar {
+    display: flex; align-items: center; height: 36px; min-height: 36px;
+    background: #f6f8fa; border-bottom: 1px solid #d1d9e0;
+    overflow-x: auto; overflow-y: hidden; flex-shrink: 0;
+}
+#tab-bar:empty { display: none; }
+body.dark #tab-bar { background: #161b22; border-bottom-color: #30363d; }
+
+/* Toggle button in tab bar */
+#drawer-toggle {
+    flex-shrink: 0; width: 36px; height: 36px; display: flex; align-items: center;
+    justify-content: center; cursor: pointer; color: #656d76; font-size: 16px;
+    border-right: 1px solid #d1d9e0; background: none; border-top: none; border-bottom: none; border-left: none;
+}
+#drawer-toggle:hover { background: #e8ebef; color: #1f2328; }
+body.dark #drawer-toggle { color: #8b949e; border-right-color: #30363d; }
+body.dark #drawer-toggle:hover { background: #1c2129; color: #f0f6fc; }
+
+.tab {
+    display: flex; align-items: center; gap: 6px; padding: 0 12px; height: 100%;
+    font-size: 12px; color: #656d76; cursor: pointer; white-space: nowrap;
+    border-right: 1px solid #d1d9e0; flex-shrink: 0; max-width: 200px;
+}
+.tab:hover { background: #e8ebef; }
+body.dark .tab { color: #8b949e; border-right-color: #30363d; }
+body.dark .tab:hover { background: #1c2129; }
+
+.tab.active { color: #1f2328; background: #ffffff; font-weight: 500; }
+body.dark .tab.active { color: #f0f6fc; background: #0d1117; }
+
+.tab-name { overflow: hidden; text-overflow: ellipsis; }
+
+.tab-close {
+    font-size: 14px; line-height: 1; padding: 0 2px; border-radius: 3px;
+    opacity: 0; transition: opacity 0.1s; flex-shrink: 0;
+}
+.tab:hover .tab-close { opacity: 1; }
+.tab-close:hover { background: #d1d9e0; }
+body.dark .tab-close:hover { background: #30363d; }
+
+/* Content area */
+#content-area { flex: 1; overflow-y: auto; }
+.markdown-body { padding: 32px 40px; max-width: 860px; margin: 0 auto; }
+</style>
+</head>
+<body>
+
+<div id="app">
+    <div id="drawer">
+        <div id="drawer-header">
+            <span>Open Files</span>
+            <button onclick="toggleDrawer()" title="Close sidebar">&times;</button>
+        </div>
+        <div id="drawer-list"></div>
+    </div>
+    <div id="main">
+        <div id="tab-bar">
+            <button id="drawer-toggle" onclick="toggleDrawer()" title="Toggle sidebar">&#9776;</button>
+        </div>
+        <div id="content-area">
+            <article class="markdown-body" id="content"></article>
+        </div>
+    </div>
+</div>
+
+<script src="marked.min.js"></script>
+<script src="highlight.min.js"></script>
+<script>
+var _el = document.getElementById('content');
+var _zoom = 1.0;
+var _dark = false;
+var _drawerOpen = true;
+
+marked.setOptions({ gfm: true, breaks: false });
+
+function setDarkMode(on) {
+    _dark = on;
+    document.body.classList.toggle('dark', on);
+    document.getElementById('theme-md').href = on ? 'github-markdown-dark.css' : 'github-markdown.css';
+    document.getElementById('theme-hl').href = on ? 'highlight-github-dark.min.css' : 'highlight-github.min.css';
+}
+
+function isDarkMode() { return _dark; }
+
+function render(md) {
+    _el.style.cssText = '';
+    _el.innerHTML = marked.parse(md);
+    document.querySelectorAll('pre code').forEach(function(block) {
+        hljs.highlightElement(block);
+    });
+    // Scroll to top on new content
+    document.getElementById('content-area').scrollTop = 0;
+}
+
+function showWelcome() {
+    _el.style.cssText = 'display:flex;justify-content:center;align-items:center;min-height:80vh;';
+    _el.innerHTML =
+        '<div style="text-align:center;">' +
+        '<h1 style="border:none;padding:0;">PrettyMark</h1>' +
+        '<p style="color:#656d76;font-size:18px;">Markdown viewer with live reload</p>' +
+        '<hr style="margin:24px auto;width:200px;">' +
+        '<p>Open a Markdown file: <strong>File \u2192 Open</strong> (Ctrl+O)</p>' +
+        '<p style="color:#656d76;">or drag and drop a file here</p>' +
+        '</div>';
+}
+
+// --- Zoom ---
+function zoomIn() {
+    _zoom = Math.min(_zoom + 0.1, 2.0);
+    document.body.style.zoom = _zoom;
+}
+function zoomOut() {
+    _zoom = Math.max(_zoom - 0.1, 0.5);
+    document.body.style.zoom = _zoom;
+}
+function zoomReset() {
+    _zoom = 1.0;
+    document.body.style.zoom = _zoom;
+}
+
+// --- Drawer ---
+function setDrawerOpen(open) {
+    _drawerOpen = open;
+    document.getElementById('drawer').classList.toggle('collapsed', !open);
+}
+
+function toggleDrawer() {
+    setDrawerOpen(!_drawerOpen);
+    window.chrome.webview.postMessage({ type: 'drawer_toggled', open: _drawerOpen });
+}
+
+// --- Tabs ---
+function addTab(info) {
+    // info: { id, name, path }
+    // Add to tab bar
+    var tabBar = document.getElementById('tab-bar');
+    var tab = document.createElement('div');
+    tab.className = 'tab';
+    tab.dataset.id = info.id;
+    tab.innerHTML = '<span class="tab-name">' + _esc(info.name) + '</span><span class="tab-close">&times;</span>';
+    tab.querySelector('.tab-name').addEventListener('click', function() {
+        window.chrome.webview.postMessage({ type: 'switch_tab', id: info.id });
+    });
+    tab.querySelector('.tab-close').addEventListener('click', function(e) {
+        e.stopPropagation();
+        window.chrome.webview.postMessage({ type: 'close_tab', id: info.id });
+    });
+    tabBar.appendChild(tab);
+
+    // Add to drawer
+    var drawerList = document.getElementById('drawer-list');
+    var item = document.createElement('div');
+    item.className = 'drawer-item';
+    item.dataset.id = info.id;
+    item.innerHTML =
+        '<div class="drawer-info">' +
+            '<span class="drawer-filename">' + _esc(info.name) + '</span>' +
+            '<span class="drawer-path">' + _esc(info.path || '') + '</span>' +
+        '</div>' +
+        '<span class="drawer-close">&times;</span>';
+    item.querySelector('.drawer-info').addEventListener('click', function() {
+        window.chrome.webview.postMessage({ type: 'switch_tab', id: info.id });
+    });
+    item.querySelector('.drawer-close').addEventListener('click', function(e) {
+        e.stopPropagation();
+        window.chrome.webview.postMessage({ type: 'close_tab', id: info.id });
+    });
+    drawerList.appendChild(item);
+
+    // Activate this tab
+    activateTab(info.id);
+}
+
+function activateTab(id) {
+    // Tab bar
+    document.querySelectorAll('#tab-bar .tab').forEach(function(t) {
+        t.classList.toggle('active', t.dataset.id === id);
+    });
+    // Drawer
+    document.querySelectorAll('#drawer-list .drawer-item').forEach(function(d) {
+        d.classList.toggle('active', d.dataset.id === id);
+    });
+}
+
+function removeTab(id) {
+    var tab = document.querySelector('#tab-bar .tab[data-id="' + id + '"]');
+    if (tab) tab.remove();
+    var item = document.querySelector('#drawer-list .drawer-item[data-id="' + id + '"]');
+    if (item) item.remove();
+}
+
+function _esc(s) {
+    var d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+}
+
+// --- About ---
+function showAbout() {
+    var existing = document.getElementById('prettymark-about');
+    if (existing) { existing.remove(); return; }
+    var o = document.createElement('div');
+    o.id = 'prettymark-about';
+    o.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;justify-content:center;align-items:center;z-index:9999;';
+    var bg = _dark ? '#161b22' : '#fff';
+    var fg = _dark ? '#f0f6fc' : '#1f2328';
+    var sub = _dark ? '#8b949e' : '#656d76';
+    var link = _dark ? '#4493f8' : '#0969da';
+    var btnBg = _dark ? '#21262d' : '#f6f8fa';
+    var btnBorder = _dark ? '#30363d' : '#d1d9e0';
+    o.innerHTML = '<div style="background:' + bg + ';border-radius:12px;padding:32px 40px;max-width:400px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.3);font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;">'
+        + '<h2 style="margin:0 0 8px 0;color:' + fg + ';">PrettyMark</h2>'
+        + '<p style="margin:0 0 12px 0;color:' + sub + ';font-size:14px;">Markdown viewer with live reload<br>and syntax highlighting.</p>'
+        + '<a href="https://gitlab.com/eagle1/prettymark" style="color:' + link + ';font-size:14px;">gitlab.com/eagle1/prettymark</a>'
+        + '<br><br><button id="prettymark-about-ok" style="padding:6px 20px;border:1px solid ' + btnBorder + ';border-radius:6px;background:' + btnBg + ';color:' + fg + ';cursor:pointer;font-size:14px;">OK</button>'
+        + '</div>';
+    o.addEventListener('click', function(e) { if (e.target === o) o.remove(); });
+    document.body.appendChild(o);
+    document.getElementById('prettymark-about-ok').addEventListener('click', function() { o.remove(); });
+}
+
+// External links — open in system browser
+document.addEventListener('click', function(e) {
+    var a = e.target.closest('a[href]');
+    if (a && a.href && (a.href.startsWith('http://') || a.href.startsWith('https://'))) {
+        e.preventDefault();
+        window.chrome.webview.postMessage({ type: 'open_url', url: a.href });
+    }
+});
+</script>
+</body>
+</html>
