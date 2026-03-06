@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PrettyMark</title>
+<link rel="icon" href="favicon.ico">
 <link id="theme-md" rel="stylesheet" href="github-markdown.css">
 <link id="theme-hl" rel="stylesheet" href="highlight-github.min.css">
 <style>
@@ -284,15 +285,22 @@ function showAbout() {
     var link = _dark ? '#4493f8' : '#0969da';
     var btnBg = _dark ? '#21262d' : '#f6f8fa';
     var btnBorder = _dark ? '#30363d' : '#d1d9e0';
-    o.innerHTML = '<div style="background:' + bg + ';border-radius:12px;padding:32px 40px;max-width:400px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.3);font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;">'
+    o.innerHTML = '<div style="background:' + bg + ';border-radius:12px;overflow:hidden;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.3);font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;max-width:480px;max-height:90vh;display:flex;flex-direction:column;position:relative;">'
+        + '<button id="prettymark-about-close" style="position:absolute;top:8px;right:8px;width:28px;height:28px;border:none;background:rgba(0,0,0,0.3);color:#fff;font-size:18px;line-height:1;border-radius:6px;cursor:pointer;z-index:1;">&times;</button>'
+        + '<div style="background:' + (bg === '#fff' ? '#f6f8fa' : '#0d1117') + ';padding:24px;flex-shrink:0;"><img src="logo.png" alt="PrettyMark" style="max-width:100%;max-height:40vh;display:block;margin:0 auto;"></div>'
+        + '<div style="padding:20px 32px 28px;">'
         + '<h2 style="margin:0 0 8px 0;color:' + fg + ';">PrettyMark</h2>'
         + '<p style="margin:0 0 12px 0;color:' + sub + ';font-size:14px;">Markdown viewer with live reload<br>and syntax highlighting.</p>'
         + '<a href="https://gitlab.com/eagle1/prettymark" style="color:' + link + ';font-size:14px;">gitlab.com/eagle1/prettymark</a>'
         + '<br><br><button id="prettymark-about-ok" style="padding:6px 20px;border:1px solid ' + btnBorder + ';border-radius:6px;background:' + btnBg + ';color:' + fg + ';cursor:pointer;font-size:14px;">OK</button>'
-        + '</div>';
-    o.addEventListener('click', function(e) { if (e.target === o) o.remove(); });
+        + '</div></div>';
+    var closeAbout = function() { o.remove(); document.removeEventListener('keydown', escHandler); };
+    var escHandler = function(e) { if (e.key === 'Escape') closeAbout(); };
+    o.addEventListener('click', function(e) { if (e.target === o) closeAbout(); });
     document.body.appendChild(o);
-    document.getElementById('prettymark-about-ok').addEventListener('click', function() { o.remove(); });
+    document.getElementById('prettymark-about-ok').addEventListener('click', closeAbout);
+    document.getElementById('prettymark-about-close').addEventListener('click', closeAbout);
+    document.addEventListener('keydown', escHandler);
 }
 
 // External links — open in system browser

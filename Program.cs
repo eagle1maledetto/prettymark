@@ -285,6 +285,10 @@ class MainForm : Form
         MinimumSize = new System.Drawing.Size(400, 300);
         StartPosition = FormStartPosition.CenterScreen;
 
+        var iconPath = Path.Combine(AppContext.BaseDirectory, "assets", "favicon.ico");
+        if (File.Exists(iconPath))
+            Icon = new System.Drawing.Icon(iconPath);
+
         SetupMenu();
         InitializeWebView();
 

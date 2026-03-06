@@ -6,6 +6,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>PrettyMark</AssemblyName>
     <RootNamespace>PrettyMark</RootNamespace>
+    <ApplicationIcon>assets\favicon.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
