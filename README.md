@@ -24,6 +24,15 @@ A lightweight, native Markdown viewer for Windows with live reload and syntax hi
 - **Zoom** — `Ctrl++` / `Ctrl+-` / `Ctrl+0`
 - **Native** — single `.exe`, no Electron, no browser required (uses WebView2/EdgeChromium)
 
+## Download
+
+**[Latest release (v1.0.0)](https://gitlab.com/eagle1/prettymark/-/releases/v1.0.0)**
+
+| Package | Description |
+|---------|-------------|
+| [PrettyMark-portable-win-x64.zip](https://gitlab.com/eagle1/prettymark/uploads/e8b1d8c0a95bff0e8adf327c2e899b5c/PrettyMark-portable-win-x64.zip) | Portable — unzip and run, no installation needed |
+| [PrettyMark-1.0.0.0-win-x64.msix](https://gitlab.com/eagle1/prettymark/uploads/24788925364db37aac340562378c6523/PrettyMark-1.0.0.0-win-x64.msix) | MSIX installer — Start menu, file associations, uninstaller |
+
 ## Screenshot
 
 <!-- TODO: add screenshot -->
@@ -33,7 +42,7 @@ A lightweight, native Markdown viewer for Windows with live reload and syntax hi
 ### Prerequisites
 
 - Windows 10/11
-- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) (only for building from source)
 
 ### Run from source
 
@@ -50,6 +59,15 @@ dotnet publish -c Release -r win-x64 --self-contained -p:PublishSingleFile=true 
 ```
 
 The output is a single `PrettyMark.exe` in `bin\Release\net8.0-windows\win-x64\publish\`.
+
+### Build MSIX installer
+
+Requires [Windows SDK](https://developer.microsoft.com/windows/downloads/windows-sdk/) (for `makeappx.exe`).
+
+```powershell
+.\build-msix.ps1 -Version "1.0.0.0"
+# Add -Sign to create a self-signed certificate for testing
+```
 
 ## Usage
 

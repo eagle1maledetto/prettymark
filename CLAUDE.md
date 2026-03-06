@@ -29,6 +29,7 @@ Renders `.md` files in a native WinForms window using WebView2 (EdgeChromium), w
 PrettyMark.csproj              # .NET 8 project file
 Program.cs                     # Main application (entry point, COM interop, tab management)
 nuget.config                   # NuGet feed configuration
+build-msix.ps1                 # PowerShell script to build MSIX installer (Windows only)
 assets/index.html              # HTML template with JS rendering logic (tabs, drawer, about)
 assets/github-markdown.css     # GitHub-flavored Markdown CSS (light)
 assets/github-markdown-dark.css # GitHub-flavored Markdown CSS (dark)
@@ -37,6 +38,7 @@ assets/highlight.min.js        # Syntax highlighting
 assets/highlight-github.min.css # Highlight.js github theme (light)
 assets/highlight-github-dark.min.css # Highlight.js github theme (dark)
 assets/lang/*.json             # i18n translation files (one per language)
+assets/msix/*.png              # MSIX visual assets (StoreLogo, Square44x44, Square150x150)
 test.md                        # Test file for verifying rendering
 ```
 
@@ -47,11 +49,12 @@ test.md                        # Test file for verifying rendering
 - **marked.js** — client-side Markdown → HTML (bundled in assets)
 - **highlight.js** — client-side syntax highlighting (bundled in assets)
 
-## Build (Windows)
+## Build
 
 ### Prerequisites
 
 1. .NET 8 SDK installed: https://dotnet.microsoft.com/download/dotnet/8.0
+2. Windows SDK (for MSIX only): https://developer.microsoft.com/windows/downloads/windows-sdk/
 
 ### Run in development
 
@@ -60,13 +63,28 @@ cd C:\path\to\prettymark
 dotnet run -- test.md
 ```
 
-### Build the executable
+### Build portable executable
 
 ```cmd
 dotnet publish -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeAllContentForSelfExtract=true
 ```
 
 Output: `bin\Release\net8.0-windows\win-x64\publish\PrettyMark.exe`
+
+Cross-compile from Linux: add `-p:EnableWindowsTargeting=true`
+
+### Build MSIX installer (Windows only)
+
+```powershell
+.\build-msix.ps1 -Version "1.0.0.0"        # unsigned (for Store upload)
+.\build-msix.ps1 -Version "1.0.0.0" -Sign   # self-signed (for sideloading)
+```
+
+Output: `bin\msix\PrettyMark-1.0.0.0-win-x64.msix`
+
+### Release artifacts
+
+Hosted on GitLab Releases: https://gitlab.com/eagle1/prettymark/-/releases
 
 ## Usage
 
