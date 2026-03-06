@@ -118,6 +118,59 @@ body.dark .tab-close:hover { background: #30363d; }
 /* Content area */
 #content-area { flex: 1; overflow-y: auto; }
 .markdown-body { padding: 32px 40px; max-width: 860px; margin: 0 auto; }
+
+/* Status bar */
+#status-bar {
+    display: flex; align-items: center; height: 26px; min-height: 26px;
+    padding: 0 10px; font-size: 11px; color: #656d76;
+    background: #f6f8fa; border-top: 1px solid #d1d9e0; flex-shrink: 0;
+    gap: 10px;
+}
+body.dark #status-bar { background: #161b22; border-top-color: #30363d; color: #8b949e; }
+
+#zoom-control { display: flex; align-items: center; gap: 6px; }
+#zoom-slider {
+    -webkit-appearance: none; appearance: none; width: 100px; height: 4px;
+    background: #d1d9e0; border-radius: 2px; outline: none; cursor: pointer;
+}
+body.dark #zoom-slider { background: #30363d; }
+#zoom-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none; width: 12px; height: 12px;
+    background: #656d76; border-radius: 50%; cursor: pointer;
+}
+body.dark #zoom-slider::-webkit-slider-thumb { background: #8b949e; }
+#zoom-label { min-width: 32px; text-align: center; }
+
+#status-info { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+/* Find bar */
+#find-bar {
+    display: none; position: fixed; top: 8px; right: 8px; z-index: 1000;
+    background: #fff; border: 1px solid #d0d7de; border-radius: 6px;
+    padding: 4px 8px; box-shadow: 0 1px 3px rgba(0,0,0,.12);
+    align-items: center; gap: 4px;
+}
+body.dark #find-bar { background: #161b22; border-color: #30363d; }
+#find-input {
+    border: 1px solid #d0d7de; border-radius: 4px; padding: 4px 8px;
+    font-size: 13px; width: 200px; outline: none; background: #fff; color: #1f2328;
+}
+body.dark #find-input { background: #0d1117; border-color: #30363d; color: #e6edf3; }
+#find-input:focus { border-color: #0969da; box-shadow: 0 0 0 2px rgba(9,105,218,.3); }
+body.dark #find-input:focus { border-color: #4493f8; box-shadow: 0 0 0 2px rgba(68,147,248,.3); }
+#find-bar button {
+    background: none; border: 1px solid transparent; border-radius: 4px;
+    cursor: pointer; padding: 2px 6px; color: #656d76; font-size: 14px;
+}
+#find-bar button:hover { background: #f3f4f6; border-color: #d0d7de; }
+body.dark #find-bar button { color: #8b949e; }
+body.dark #find-bar button:hover { background: #30363d; border-color: #484f58; }
+#find-count { font-size: 11px; color: #656d76; min-width: 40px; text-align: center; }
+body.dark #find-count { color: #8b949e; }
+mark.find-match { background: #fff2b0; color: inherit; border-radius: 2px; }
+body.dark mark.find-match { background: #6e5e14; }
+mark.find-match.current { background: #f9826c; }
+body.dark mark.find-match.current { background: #b35c44; }
 </style>
 </head>
 <body>
@@ -137,7 +190,24 @@ body.dark .tab-close:hover { background: #30363d; }
         <div id="content-area">
             <article class="markdown-body" id="content"></article>
         </div>
+        <div id="status-bar">
+            <div id="status-info"></div>
+            <div id="zoom-control">
+                <span style="cursor:pointer;" onclick="zoomOut()" title="Zoom out">&#x2212;</span>
+                <input type="range" id="zoom-slider" min="50" max="200" value="100" step="10" oninput="setZoomFromSlider(this.value)">
+                <span style="cursor:pointer;" onclick="zoomIn()" title="Zoom in">+</span>
+                <span id="zoom-label">100%</span>
+            </div>
+        </div>
     </div>
+</div>
+
+<div id="find-bar">
+    <input type="text" id="find-input" placeholder="Find...">
+    <span id="find-count"></span>
+    <button id="find-prev" title="Previous (Shift+Enter)">&#9650;</button>
+    <button id="find-next" title="Next (Enter)">&#9660;</button>
+    <button id="find-close" title="Close (Esc)">&times;</button>
 </div>
 
 <script src="marked.min.js"></script>
@@ -182,17 +252,26 @@ function showWelcome() {
 }
 
 // --- Zoom ---
+function _updateZoom() {
+    document.getElementById('content-area').style.zoom = _zoom;
+    document.getElementById('zoom-slider').value = Math.round(_zoom * 100);
+    document.getElementById('zoom-label').textContent = Math.round(_zoom * 100) + '%';
+}
 function zoomIn() {
-    _zoom = Math.min(_zoom + 0.1, 2.0);
-    document.body.style.zoom = _zoom;
+    _zoom = Math.min(Math.round((_zoom + 0.1) * 10) / 10, 2.0);
+    _updateZoom();
 }
 function zoomOut() {
-    _zoom = Math.max(_zoom - 0.1, 0.5);
-    document.body.style.zoom = _zoom;
+    _zoom = Math.max(Math.round((_zoom - 0.1) * 10) / 10, 0.5);
+    _updateZoom();
 }
 function zoomReset() {
     _zoom = 1.0;
-    document.body.style.zoom = _zoom;
+    _updateZoom();
+}
+function setZoomFromSlider(val) {
+    _zoom = parseInt(val) / 100;
+    _updateZoom();
 }
 
 // --- Drawer ---
@@ -309,6 +388,175 @@ document.addEventListener('click', function(e) {
     if (a && a.href && (a.href.startsWith('http://') || a.href.startsWith('https://'))) {
         e.preventDefault();
         window.chrome.webview.postMessage({ type: 'open_url', url: a.href });
+    }
+});
+
+// Close WinForms menu on click
+document.addEventListener('mousedown', function() {
+    window.chrome.webview.postMessage({ type: 'click' });
+});
+
+// --- Drag & drop ---
+document.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+});
+
+// --- Find bar (DOM-based highlighting) ---
+var _findMatches = [];
+var _findCurrent = -1;
+
+function _clearFind() {
+    _findMatches = [];
+    _findCurrent = -1;
+    document.getElementById('find-count').textContent = '';
+    // Unwrap all <mark> elements
+    _el.querySelectorAll('mark.find-match').forEach(function(m) {
+        var parent = m.parentNode;
+        parent.replaceChild(document.createTextNode(m.textContent), m);
+        parent.normalize();
+    });
+}
+
+function _highlightFind(query) {
+    _clearFind();
+    if (!query) return;
+    var lowerQuery = query.toLowerCase();
+    var walker = document.createTreeWalker(_el, NodeFilter.SHOW_TEXT, null);
+    var textNodes = [];
+    while (walker.nextNode()) textNodes.push(walker.currentNode);
+    for (var i = 0; i < textNodes.length; i++) {
+        var node = textNodes[i];
+        var text = node.textContent;
+        var lowerText = text.toLowerCase();
+        var idx = lowerText.indexOf(lowerQuery);
+        if (idx === -1) continue;
+        var frag = document.createDocumentFragment();
+        var lastIdx = 0;
+        while (idx !== -1) {
+            if (idx > lastIdx) frag.appendChild(document.createTextNode(text.substring(lastIdx, idx)));
+            var mark = document.createElement('mark');
+            mark.className = 'find-match';
+            mark.textContent = text.substring(idx, idx + query.length);
+            frag.appendChild(mark);
+            _findMatches.push(mark);
+            lastIdx = idx + query.length;
+            idx = lowerText.indexOf(lowerQuery, lastIdx);
+        }
+        if (lastIdx < text.length) frag.appendChild(document.createTextNode(text.substring(lastIdx)));
+        node.parentNode.replaceChild(frag, node);
+    }
+    if (_findMatches.length > 0) {
+        _findCurrent = 0;
+        _showCurrentMatch();
+    }
+    _updateFindCount();
+}
+
+function _showCurrentMatch() {
+    _findMatches.forEach(function(m) { m.classList.remove('current'); });
+    if (_findCurrent >= 0 && _findCurrent < _findMatches.length) {
+        var m = _findMatches[_findCurrent];
+        m.classList.add('current');
+        m.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
+}
+
+function _updateFindCount() {
+    var el = document.getElementById('find-count');
+    if (_findMatches.length === 0) {
+        el.textContent = document.getElementById('find-input').value ? 'No results' : '';
+    } else {
+        el.textContent = (_findCurrent + 1) + '/' + _findMatches.length;
+    }
+}
+
+function findNext() {
+    if (_findMatches.length === 0) return;
+    _findCurrent = (_findCurrent + 1) % _findMatches.length;
+    _showCurrentMatch();
+    _updateFindCount();
+}
+
+function findPrev() {
+    if (_findMatches.length === 0) return;
+    _findCurrent = (_findCurrent - 1 + _findMatches.length) % _findMatches.length;
+    _showCurrentMatch();
+    _updateFindCount();
+}
+
+function toggleFind() {
+    var bar = document.getElementById('find-bar');
+    if (bar.style.display === 'flex') {
+        bar.style.display = 'none';
+        _clearFind();
+    } else {
+        bar.style.display = 'flex';
+        var input = document.getElementById('find-input');
+        input.focus();
+        input.select();
+    }
+}
+
+document.getElementById('find-input').addEventListener('input', function() {
+    _highlightFind(this.value);
+});
+document.getElementById('find-next').addEventListener('click', function() { findNext(); });
+document.getElementById('find-prev').addEventListener('click', function() { findPrev(); });
+document.getElementById('find-close').addEventListener('click', function() {
+    document.getElementById('find-bar').style.display = 'none';
+    _clearFind();
+});
+document.getElementById('find-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        if (e.shiftKey) findPrev(); else findNext();
+    }
+    if (e.key === 'Escape') {
+        document.getElementById('find-bar').style.display = 'none';
+        _clearFind();
+    }
+});
+
+// --- Keyboard shortcuts ---
+document.addEventListener('keydown', function(e) {
+    // Skip if typing in find input
+    if (e.target.id === 'find-input') return;
+    if (e.ctrlKey && e.key === 'o') {
+        e.preventDefault();
+        window.chrome.webview.postMessage({ type: 'shortcut', action: 'open' });
+    }
+    else if (e.ctrlKey && e.key === 'w') {
+        e.preventDefault();
+        window.chrome.webview.postMessage({ type: 'shortcut', action: 'close_tab' });
+    }
+    else if (e.ctrlKey && e.key === 'f') {
+        e.preventDefault();
+        toggleFind();
+    }
+    else if (e.key === 'F11') {
+        e.preventDefault();
+        window.chrome.webview.postMessage({ type: 'shortcut', action: 'fullscreen' });
+    }
+    else if (e.ctrlKey && e.key === 'd') {
+        e.preventDefault();
+        window.chrome.webview.postMessage({ type: 'shortcut', action: 'dark_mode' });
+    }
+    else if (e.ctrlKey && e.key === 'b') {
+        e.preventDefault();
+        window.chrome.webview.postMessage({ type: 'shortcut', action: 'sidebar' });
+    }
+    else if (e.ctrlKey && (e.key === '+' || e.key === '=')) {
+        e.preventDefault();
+        zoomIn();
+    }
+    else if (e.ctrlKey && e.key === '-') {
+        e.preventDefault();
+        zoomOut();
+    }
+    else if (e.ctrlKey && e.key === '0') {
+        e.preventDefault();
+        zoomReset();
     }
 });
 </script>

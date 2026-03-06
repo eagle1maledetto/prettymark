@@ -13,9 +13,10 @@ Renders `.md` files in a native WinForms window using WebView2 (EdgeChromium), w
 - Dark mode with persistence (AppData settings)
 - Multi-tab support: open multiple files simultaneously in a single window
 - Collapsible sidebar (drawer) with list of open files
-- Drag & drop via COM IDropTarget (full path, live reload works)
-- Native menu bar: File → Open / Close Tab, View → Dark Mode / Sidebar / Zoom, ? → About
-- Keyboard shortcuts: `Ctrl+O` open, `Ctrl+W` close tab, `Ctrl+D` dark mode, `Ctrl+B` sidebar, `Ctrl++`/`Ctrl+-`/`Ctrl+0` zoom
+- Drag & drop: native Chromium drop intercepted via `NewWindowRequested` (opens as new tab)
+- Find bar (`Ctrl+F`): DOM-based text search with highlight, match counter, next/prev navigation
+- Native menu bar: File → Open / Close Tab, Edit → Find, View → Dark Mode / Sidebar / Zoom / Full Screen, ? → About
+- Keyboard shortcuts (JS `keydown` → `postMessage`): `Ctrl+O` open, `Ctrl+W` close tab, `Ctrl+F` find, `Ctrl+D` dark mode, `Ctrl+B` sidebar, `Ctrl++`/`Ctrl+-`/`Ctrl+0` zoom, `F11` fullscreen
 - Welcome screen when launched without arguments
 
 ## Project Structure
@@ -76,11 +77,14 @@ PrettyMark.exe
 
 - **Rendering pipeline:** Program.cs reads .md file → passes content to WebView2 via `ExecuteScriptAsync()` → `assets/index.html` renders with marked.js + highlight.js
 - **Tab system:** C# manages tab state (`TabInfo` list + `activeTabId`), each tab has its own `FileSystemWatcher`. JS manages tab bar + drawer UI, synchronized via `postMessage`.
-- **Drag & drop:** COM `IDropTarget` registered on WebView2's internal Chrome widget HWND via `RegisterDragDrop`. Extracts file paths from CF_HDROP. WebView2's own drop is disabled (`AllowExternalDrop = false`).
+- **Drag & drop:** `AllowExternalDrop = true` lets Chromium handle the drop natively. `NewWindowRequested` handler intercepts the new-window attempt, extracts the file path, and opens it as a tab. `NavigationStarting` handler as fallback.
 - **Live reload:** `FileSystemWatcher` per tab; debounced handler re-reads and posts updated content (active tab only)
 - **Drawer:** Collapsible sidebar (240px) with file list. State persisted in AppData. Toggle via `Ctrl+B` or hamburger button.
 - **Dark mode:** CSS class toggle + stylesheet swap (light/dark variants for both markdown and highlight.js). Persisted in AppData.
-- **Zoom:** CSS `zoom` property on `document.body`, controlled via menu or WebView2 JS interop
-- **Menu:** WinForms `MenuStrip` with File → Open/Close Tab, View → Dark Mode/Sidebar/Zoom, ? → About
+- **Zoom:** CSS `zoom` property on `#content-area`, controlled via menu/shortcuts/slider in status bar
+- **Menu:** WinForms `MenuStrip` with File → Open/Close Tab, Edit → Find, View → Dark Mode/Sidebar/Zoom/Full Screen, ? → About. `ShortcutKeys` on items as fallback; primary shortcut handling is JS-side.
+- **Keyboard shortcuts:** `AreBrowserAcceleratorKeysEnabled = false` → keys go to web content as JS `keydown`. JS handler uses `postMessage({ type: 'shortcut', action })` for C# actions; zoom/find handled directly in JS.
+- **Find bar:** DOM-based search (no `window.find()` — it steals focus in WebView2). Wraps matches in `<mark>` elements, tracks current index, scrolls to match.
+- **Menu auto-close:** JS `mousedown` sends `postMessage({ type: 'click' })`, C# calls `HideDropDown()` only on visible dropdowns (calling on hidden ones steals focus from WebView2).
 - **Assets:** bundled via `<Content Include="assets\**\*">` in .csproj, copied to output directory
-- **Messages JS→C#:** `open_url`, `switch_tab`, `close_tab`, `drawer_toggled`
+- **Messages JS→C#:** `open_url`, `switch_tab`, `close_tab`, `shortcut`, `click`, `drawer_toggled`

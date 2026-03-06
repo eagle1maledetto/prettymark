@@ -14,7 +14,9 @@ A lightweight, native Markdown viewer for Windows with live reload and syntax hi
 - **Multi-tab** — open multiple files in a single window
 - **Sidebar** — collapsible drawer with list of open files and paths
 - **Drag & drop** — drop `.md` files directly into the window
+- **Find in page** — `Ctrl+F` with match highlighting and navigation
 - **Dark mode** — toggle with `Ctrl+D`, preference is remembered
+- **Full screen** — `F11` toggle
 - **Zoom** — `Ctrl++` / `Ctrl+-` / `Ctrl+0`
 - **Native** — single `.exe`, no Electron, no browser required (uses WebView2/EdgeChromium)
 
@@ -61,8 +63,10 @@ PrettyMark.exe
 |----------|--------|
 | `Ctrl+O` | Open file |
 | `Ctrl+W` | Close current tab |
+| `Ctrl+F` | Find in page |
 | `Ctrl+D` | Toggle dark mode |
 | `Ctrl+B` | Toggle sidebar |
+| `F11` | Toggle full screen |
 | `Ctrl++` | Zoom in |
 | `Ctrl+-` | Zoom out |
 | `Ctrl+0` | Reset zoom |
@@ -72,7 +76,7 @@ PrettyMark.exe
 PrettyMark is a WinForms application that hosts a [WebView2](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) control (EdgeChromium). Markdown files are read by C# and passed to the embedded HTML page, which renders them client-side using marked.js and highlight.js.
 
 - **Tab management** is handled in C# — each open file gets its own `FileSystemWatcher` for live reload
-- **Drag & drop** uses a custom COM `IDropTarget` registered on WebView2's internal Chrome widget, providing full file paths (unlike the JS File API)
+- **Drag & drop** uses native Chromium drop handling, intercepted via `NewWindowRequested` to open files as tabs
 - **Settings** (dark mode, sidebar state) are persisted in `%AppData%\PrettyMark\settings.json`
 
 ## License

@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -11,143 +10,6 @@ using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
 
 namespace PrettyMark;
-
-// --- P/Invoke for OLE drag-drop ---
-static class NativeMethods
-{
-    [DllImport("ole32.dll")] public static extern int RevokeDragDrop(IntPtr hwnd);
-    [DllImport("ole32.dll")] public static extern int RegisterDragDrop(IntPtr hwnd, IDropTargetNative pDropTarget);
-    [DllImport("user32.dll")] public static extern bool EnumChildWindows(IntPtr parent, EnumWindowsProc callback, IntPtr lParam);
-    [DllImport("user32.dll", CharSet = CharSet.Auto)] public static extern int GetClassName(IntPtr hWnd, StringBuilder sb, int maxCount);
-    [DllImport("shell32.dll", CharSet = CharSet.Auto)] public static extern uint DragQueryFile(IntPtr hDrop, uint iFile, StringBuilder sb, uint cch);
-    [DllImport("ole32.dll")] public static extern void ReleaseStgMedium(ref STGMEDIUM medium);
-
-    public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
-}
-
-[StructLayout(LayoutKind.Sequential)]
-struct POINTL { public int x, y; }
-
-[StructLayout(LayoutKind.Sequential)]
-struct FORMATETC
-{
-    public ushort cfFormat;
-    public IntPtr ptd;
-    public uint dwAspect;
-    public int lindex;
-    public uint tymed;
-}
-
-[StructLayout(LayoutKind.Sequential)]
-struct STGMEDIUM
-{
-    public uint tymed;
-    public IntPtr unionmember;
-    public IntPtr pUnkForRelease;
-}
-
-[ComImport, Guid("00000122-0000-0000-C000-000000000046"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-interface IDropTargetNative
-{
-    void DragEnter([In, MarshalAs(UnmanagedType.Interface)] object pDataObj, uint grfKeyState, POINTL pt, ref uint pdwEffect);
-    void DragOver(uint grfKeyState, POINTL pt, ref uint pdwEffect);
-    void DragLeave();
-    void Drop([In, MarshalAs(UnmanagedType.Interface)] object pDataObj, uint grfKeyState, POINTL pt, ref uint pdwEffect);
-}
-
-class FileDropTarget : IDropTargetNative
-{
-    private const short CF_HDROP = 15;
-    private const uint TYMED_HGLOBAL = 1;
-    private const uint DVASPECT_CONTENT = 1;
-    private const uint DROPEFFECT_COPY = 1;
-    private const uint DROPEFFECT_NONE = 0;
-    private static readonly string[] AllowedExtensions = { ".md", ".markdown", ".txt" };
-
-    private readonly Action<string> _onDrop;
-
-    public FileDropTarget(Action<string> onDrop) => _onDrop = onDrop;
-
-    public void DragEnter(object pDataObj, uint grfKeyState, POINTL pt, ref uint pdwEffect)
-    {
-        pdwEffect = HasHDrop(pDataObj) ? DROPEFFECT_COPY : DROPEFFECT_NONE;
-    }
-
-    public void DragOver(uint grfKeyState, POINTL pt, ref uint pdwEffect)
-    {
-        pdwEffect = DROPEFFECT_COPY;
-    }
-
-    public void DragLeave() { }
-
-    public void Drop(object pDataObj, uint grfKeyState, POINTL pt, ref uint pdwEffect)
-    {
-        pdwEffect = DROPEFFECT_NONE;
-        try
-        {
-            var dataObj = pDataObj as System.Runtime.InteropServices.ComTypes.IDataObject;
-            if (dataObj == null) return;
-
-            var fmt = new System.Runtime.InteropServices.ComTypes.FORMATETC
-            {
-                cfFormat = CF_HDROP,
-                ptd = IntPtr.Zero,
-                dwAspect = System.Runtime.InteropServices.ComTypes.DVASPECT.DVASPECT_CONTENT,
-                lindex = -1,
-                tymed = System.Runtime.InteropServices.ComTypes.TYMED.TYMED_HGLOBAL
-            };
-
-            dataObj.GetData(ref fmt, out var medium);
-            var hDrop = (IntPtr)medium.unionmember;
-            try
-            {
-                uint count = NativeMethods.DragQueryFile(hDrop, 0xFFFFFFFF, null, 0);
-                for (uint i = 0; i < count; i++)
-                {
-                    var sb = new StringBuilder(260);
-                    NativeMethods.DragQueryFile(hDrop, i, sb, 260);
-                    var path = sb.ToString();
-                    var ext = Path.GetExtension(path).ToLowerInvariant();
-                    if (AllowedExtensions.Contains(ext))
-                    {
-                        _onDrop(path);
-                        pdwEffect = DROPEFFECT_COPY;
-                    }
-                }
-            }
-            finally
-            {
-                var stg = new STGMEDIUM
-                {
-                    tymed = (uint)medium.tymed,
-                    unionmember = hDrop,
-                    pUnkForRelease = medium.pUnkForRelease != null ? (IntPtr)medium.pUnkForRelease : IntPtr.Zero
-                };
-                NativeMethods.ReleaseStgMedium(ref stg);
-            }
-        }
-        catch { }
-    }
-
-    private static bool HasHDrop(object pDataObj)
-    {
-        try
-        {
-            var dataObj = pDataObj as System.Runtime.InteropServices.ComTypes.IDataObject;
-            if (dataObj == null) return false;
-            var fmt = new System.Runtime.InteropServices.ComTypes.FORMATETC
-            {
-                cfFormat = CF_HDROP,
-                ptd = IntPtr.Zero,
-                dwAspect = System.Runtime.InteropServices.ComTypes.DVASPECT.DVASPECT_CONTENT,
-                lindex = -1,
-                tymed = System.Runtime.InteropServices.ComTypes.TYMED.TYMED_HGLOBAL
-            };
-            return dataObj.QueryGetData(ref fmt) == 0;
-        }
-        catch { return false; }
-    }
-}
 
 // --- App Settings ---
 class AppSettings
@@ -175,63 +37,6 @@ class AppSettings
         var dir = Path.GetDirectoryName(SettingsPath);
         if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
         File.WriteAllText(SettingsPath, JsonSerializer.Serialize(this));
-    }
-}
-
-class PreferencesForm : Form
-{
-    public AppSettings Settings { get; }
-
-    public PreferencesForm(AppSettings settings)
-    {
-        Settings = settings;
-        Text = "Preferences";
-        FormBorderStyle = FormBorderStyle.FixedDialog;
-        MaximizeBox = false;
-        MinimizeBox = false;
-        StartPosition = FormStartPosition.CenterParent;
-        Size = new System.Drawing.Size(340, 180);
-
-        var themeLabel = new Label
-        {
-            Text = "Theme:",
-            Location = new System.Drawing.Point(20, 24),
-            AutoSize = true
-        };
-
-        var themeCombo = new ComboBox
-        {
-            DropDownStyle = ComboBoxStyle.DropDownList,
-            Location = new System.Drawing.Point(120, 20),
-            Width = 160
-        };
-        themeCombo.Items.AddRange(new[] { "Light", "Dark" });
-        themeCombo.SelectedIndex = settings.DarkMode ? 1 : 0;
-
-        var okBtn = new Button
-        {
-            Text = "OK",
-            DialogResult = DialogResult.OK,
-            Location = new System.Drawing.Point(110, 90),
-            Width = 80
-        };
-
-        var cancelBtn = new Button
-        {
-            Text = "Cancel",
-            DialogResult = DialogResult.Cancel,
-            Location = new System.Drawing.Point(200, 90),
-            Width = 80
-        };
-
-        AcceptButton = okBtn;
-        CancelButton = cancelBtn;
-        Controls.AddRange(new Control[] { themeLabel, themeCombo, okBtn, cancelBtn });
-
-        okBtn.Click += (s, e) =>
-        {
-            Settings.DarkMode = themeCombo.SelectedIndex == 1;
-        };
     }
 }
 
@@ -273,6 +78,11 @@ class MainForm : Form
     private ToolStripMenuItem drawerItem;
     private AppSettings settings;
 
+    // Fullscreen state
+    private bool _isFullscreen;
+    private FormBorderStyle _savedBorderStyle;
+    private FormWindowState _savedWindowState;
+
     // Tab state
     private readonly List<TabInfo> tabs = new();
     private string activeTabId;
@@ -311,9 +121,14 @@ class MainForm : Form
             ShortcutKeys = Keys.Control | Keys.W
         });
         fileMenu.DropDownItems.Add(new ToolStripSeparator());
-        fileMenu.DropDownItems.Add("&Preferences...", null, (s, e) => ShowPreferences());
-        fileMenu.DropDownItems.Add(new ToolStripSeparator());
         fileMenu.DropDownItems.Add("E&xit", null, (s, e) => Close());
+
+        // Edit
+        var editMenu = new ToolStripMenuItem("&Edit");
+        editMenu.DropDownItems.Add(new ToolStripMenuItem("&Find", null, (s, e) => ExecuteJs("toggleFind()"))
+        {
+            ShortcutKeys = Keys.Control | Keys.F
+        });
 
         // View
         var viewMenu = new ToolStripMenuItem("&View");
@@ -337,19 +152,22 @@ class MainForm : Form
             (s, e) => ExecuteJs("zoomOut()")) { ShortcutKeys = Keys.Control | Keys.OemMinus });
         viewMenu.DropDownItems.Add(new ToolStripMenuItem("&Reset Zoom", null,
             (s, e) => ExecuteJs("zoomReset()")) { ShortcutKeys = Keys.Control | Keys.D0 });
+        viewMenu.DropDownItems.Add(new ToolStripSeparator());
+        viewMenu.DropDownItems.Add(new ToolStripMenuItem("&Full Screen", null,
+            (s, e) => ToggleFullscreen()) { ShortcutKeys = Keys.F11 });
 
         // ?
         var helpMenu = new ToolStripMenuItem("?");
         helpMenu.DropDownItems.Add("&About PrettyMark", null, (s, e) => ExecuteJs("showAbout()"));
 
-        menuStrip.Items.AddRange(new ToolStripItem[] { fileMenu, viewMenu, helpMenu });
+        menuStrip.Items.AddRange(new ToolStripItem[] { fileMenu, editMenu, viewMenu, helpMenu });
         MainMenuStrip = menuStrip;
         Controls.Add(menuStrip);
     }
 
     private async void InitializeWebView()
     {
-        webView = new WebView2 { Dock = DockStyle.Fill, AllowExternalDrop = false };
+        webView = new WebView2 { Dock = DockStyle.Fill, AllowExternalDrop = true };
         Controls.Add(webView);
         webView.BringToFront();
 
@@ -363,11 +181,34 @@ class MainForm : Form
         // Handle JS messages
         webView.CoreWebView2.WebMessageReceived += OnWebMessage;
 
-        // Block navigation away from our app
+        // Intercept navigation: handle file drops and block external navigation
         webView.CoreWebView2.NavigationStarting += (s, e) =>
         {
-            if (!e.Uri.StartsWith("https://app.local/"))
+            if (e.Uri.StartsWith("file:///"))
+            {
                 e.Cancel = true;
+                var path = new Uri(e.Uri).LocalPath;
+                var ext = Path.GetExtension(path).ToLowerInvariant();
+                if (new[] { ".md", ".markdown", ".txt" }.Contains(ext))
+                    BeginInvoke(() => OpenTab(path));
+            }
+            else if (!e.Uri.StartsWith("https://app.local/"))
+            {
+                e.Cancel = true;
+            }
+        };
+
+        // Intercept new window requests (triggered by file drag & drop)
+        webView.CoreWebView2.NewWindowRequested += (s, e) =>
+        {
+            e.Handled = true;
+            if (e.Uri.StartsWith("file:///"))
+            {
+                var path = new Uri(e.Uri).LocalPath;
+                var ext = Path.GetExtension(path).ToLowerInvariant();
+                if (new[] { ".md", ".markdown", ".txt" }.Contains(ext))
+                    BeginInvoke(() => OpenTab(path));
+            }
         };
 
         // Load content once page is ready
@@ -375,51 +216,14 @@ class MainForm : Form
 
         // Clean up WebView chrome
         webView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
+        webView.CoreWebView2.Settings.AreBrowserAcceleratorKeysEnabled = false;
 
         webView.CoreWebView2.Navigate("https://app.local/index.html");
-    }
-
-    private void RegisterDropTarget()
-    {
-        var hwnd = FindChromeWidgetHwnd(webView.Handle);
-        if (hwnd != IntPtr.Zero)
-        {
-            NativeMethods.RevokeDragDrop(hwnd);
-            NativeMethods.RegisterDragDrop(hwnd, new FileDropTarget(path =>
-                BeginInvoke(() => OpenTab(path))));
-        }
-    }
-
-    private static IntPtr FindChromeWidgetHwnd(IntPtr parentHwnd)
-    {
-        IntPtr result = IntPtr.Zero;
-        NativeMethods.EnumChildWindows(parentHwnd, (hWnd, lParam) =>
-        {
-            var sb = new StringBuilder(256);
-            NativeMethods.GetClassName(hWnd, sb, 256);
-            if (sb.ToString() == "Chrome_WidgetWin_0")
-            {
-                result = hWnd;
-                return false; // stop enumeration
-            }
-            // recurse into children
-            var child = FindChromeWidgetHwnd(hWnd);
-            if (child != IntPtr.Zero)
-            {
-                result = child;
-                return false;
-            }
-            return true;
-        }, IntPtr.Zero);
-        return result;
     }
 
     private async void OnNavigationCompleted(object sender, CoreWebView2NavigationCompletedEventArgs e)
     {
         if (!e.IsSuccess) return;
-
-        // Register COM drop target
-        RegisterDropTarget();
 
         // Apply dark mode from saved settings
         SetDarkMode(settings.DarkMode);
@@ -457,6 +261,24 @@ class MainForm : Form
             {
                 var id = doc.RootElement.GetProperty("id").GetString();
                 CloseTab(id);
+            }
+            else if (type == "shortcut")
+            {
+                var action = doc.RootElement.GetProperty("action").GetString();
+                switch (action)
+                {
+                    case "open": OpenFile(); break;
+                    case "close_tab": if (activeTabId != null) CloseTab(activeTabId); break;
+                    case "fullscreen": ToggleFullscreen(); break;
+                    case "dark_mode": SetDarkMode(!darkModeItem.Checked); break;
+                    case "sidebar": ToggleDrawer(); break;
+                }
+            }
+            else if (type == "click")
+            {
+                foreach (ToolStripItem item in MainMenuStrip.Items)
+                    if (item is ToolStripMenuItem mi && mi.DropDown.Visible)
+                        mi.HideDropDown();
             }
             else if (type == "drawer_toggled")
             {
@@ -603,6 +425,25 @@ class MainForm : Form
         debounceTimer.Start();
     }
 
+    private void ToggleFullscreen()
+    {
+        if (_isFullscreen)
+        {
+            FormBorderStyle = _savedBorderStyle;
+            WindowState = _savedWindowState;
+            MainMenuStrip.Visible = true;
+        }
+        else
+        {
+            _savedBorderStyle = FormBorderStyle;
+            _savedWindowState = WindowState;
+            FormBorderStyle = FormBorderStyle.None;
+            WindowState = FormWindowState.Maximized;
+            MainMenuStrip.Visible = false;
+        }
+        _isFullscreen = !_isFullscreen;
+    }
+
     private void ToggleDrawer()
     {
         settings.DrawerOpen = !settings.DrawerOpen;
@@ -617,16 +458,6 @@ class MainForm : Form
         settings.DarkMode = on;
         settings.Save();
         ExecuteJs($"setDarkMode({(on ? "true" : "false")})");
-    }
-
-    private void ShowPreferences()
-    {
-        using var form = new PreferencesForm(settings);
-        if (form.ShowDialog(this) == DialogResult.OK)
-        {
-            settings.Save();
-            SetDarkMode(settings.DarkMode);
-        }
     }
 
     private async void ExecuteJs(string script)
