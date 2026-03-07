@@ -2,9 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.IO.Pipes;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Microsoft.Web.WebView2.Core;
@@ -77,6 +79,9 @@ class TabInfo
 // --- Entry point ---
 static class Program
 {
+    private const string MutexName = "PrettyMark_SingleInstance_Mutex";
+    private const string PipeName = "PrettyMark_SingleInstance_Pipe";
+
     [STAThread]
     static void Main(string[] args)
     {
@@ -86,7 +91,6 @@ static class Program
         string filePath = args.Length > 0 ? Path.GetFullPath(args[0]) : null;
         if (filePath != null && !File.Exists(filePath))
         {
-            // Load minimal translations for error message
             var errorStrings = MainForm.LoadTranslationsStatic(
                 MainForm.ResolveLanguageStatic(AppSettings.Load().Language));
             var msg = string.Format(
@@ -97,7 +101,28 @@ static class Program
             return;
         }
 
-        Application.Run(new MainForm(filePath));
+        using var mutex = new Mutex(true, MutexName, out bool isNew);
+        if (!isNew)
+        {
+            // Another instance is running — send file path via named pipe
+            if (filePath != null)
+            {
+                try
+                {
+                    using var client = new NamedPipeClientStream(".", PipeName, PipeDirection.Out);
+                    client.Connect(3000);
+                    using var writer = new StreamWriter(client, Encoding.UTF8);
+                    writer.WriteLine(filePath);
+                    writer.Flush();
+                }
+                catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Pipe send failed: {ex.Message}"); }
+            }
+            return;
+        }
+
+        var form = new MainForm(filePath);
+        form.StartPipeServer(PipeName);
+        Application.Run(form);
     }
 }
 
@@ -131,6 +156,39 @@ class MainForm : Form
 
     // Session restore
     private string _initialFilePath;
+
+    // Single-instance pipe server
+    private CancellationTokenSource _pipeCts;
+
+    public void StartPipeServer(string pipeName)
+    {
+        _pipeCts = new CancellationTokenSource();
+        var ct = _pipeCts.Token;
+        Task.Run(async () =>
+        {
+            while (!ct.IsCancellationRequested)
+            {
+                try
+                {
+                    using var server = new NamedPipeServerStream(pipeName, PipeDirection.In, 1,
+                        PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+                    await server.WaitForConnectionAsync(ct);
+                    using var reader = new StreamReader(server, Encoding.UTF8);
+                    var path = await reader.ReadLineAsync();
+                    if (!string.IsNullOrEmpty(path))
+                        BeginInvoke(() => { OpenTab(path); Activate(); });
+                }
+                catch (OperationCanceledException) { break; }
+                catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Pipe server error: {ex.Message}"); }
+            }
+        }, ct);
+    }
+
+    protected override void OnFormClosed(FormClosedEventArgs e)
+    {
+        _pipeCts?.Cancel();
+        base.OnFormClosed(e);
+    }
 
     public MainForm(string filePath)
     {
