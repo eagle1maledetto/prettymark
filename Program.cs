@@ -223,7 +223,11 @@ class MainForm : Form
         Controls.Add(webView);
         webView.BringToFront();
 
-        await webView.EnsureCoreWebView2Async();
+        var userDataDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "PrettyMark", "WebView2");
+        var env = await CoreWebView2Environment.CreateAsync(null, userDataDir);
+        await webView.EnsureCoreWebView2Async(env);
 
         // Serve assets from local folder via virtual host
         var assetsDir = Path.Combine(AppContext.BaseDirectory, "assets");
