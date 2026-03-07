@@ -2,8 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
-using System.IO.Pipes;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -80,7 +80,11 @@ class TabInfo
 static class Program
 {
     private const string MutexName = "PrettyMark_SingleInstance_Mutex";
-    private const string PipeName = "PrettyMark_SingleInstance_Pipe";
+    private const string EventName = "PrettyMark_SingleInstance_Event";
+
+    private static readonly string OpenRequestFile = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        "PrettyMark", "open-request.txt");
 
     [STAThread]
     static void Main(string[] args)
@@ -104,24 +108,23 @@ static class Program
         using var mutex = new Mutex(true, MutexName, out bool isNew);
         if (!isNew)
         {
-            // Another instance is running — send file path via named pipe
+            // Another instance is running — send file path via temp file + event
             if (filePath != null)
             {
                 try
                 {
-                    using var client = new NamedPipeClientStream(".", PipeName, PipeDirection.Out);
-                    client.Connect(3000);
-                    using var writer = new StreamWriter(client, Encoding.UTF8);
-                    writer.WriteLine(filePath);
-                    writer.Flush();
+                    Directory.CreateDirectory(Path.GetDirectoryName(OpenRequestFile)!);
+                    File.WriteAllText(OpenRequestFile, filePath);
+                    using var evt = EventWaitHandle.OpenExisting(EventName);
+                    evt.Set();
                 }
-                catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Pipe send failed: {ex.Message}"); }
+                catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Single-instance send failed: {ex.Message}"); }
             }
             return;
         }
 
         var form = new MainForm(filePath);
-        form.StartPipeServer(PipeName);
+        form.StartOpenRequestListener(EventName, OpenRequestFile);
         Application.Run(form);
     }
 }
@@ -157,36 +160,49 @@ class MainForm : Form
     // Session restore
     private string _initialFilePath;
 
-    // Single-instance pipe server
-    private CancellationTokenSource _pipeCts;
+    // Single-instance listener
+    private CancellationTokenSource _listenerCts;
 
-    public void StartPipeServer(string pipeName)
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+    [DllImport("user32.dll")]
+    private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+    [DllImport("user32.dll")]
+    private static extern bool IsIconic(IntPtr hWnd);
+    private const int SW_RESTORE = 9;
+
+    public void StartOpenRequestListener(string eventName, string requestFile)
     {
-        _pipeCts = new CancellationTokenSource();
-        var ct = _pipeCts.Token;
-        Task.Run(async () =>
+        var evt = new EventWaitHandle(false, EventResetMode.AutoReset, eventName);
+        _listenerCts = new CancellationTokenSource();
+        var ct = _listenerCts.Token;
+        Task.Run(() =>
         {
             while (!ct.IsCancellationRequested)
             {
                 try
                 {
-                    using var server = new NamedPipeServerStream(pipeName, PipeDirection.In, 1,
-                        PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
-                    await server.WaitForConnectionAsync(ct);
-                    using var reader = new StreamReader(server, Encoding.UTF8);
-                    var path = await reader.ReadLineAsync();
+                    if (!evt.WaitOne(500)) continue;
+                    if (!File.Exists(requestFile)) continue;
+                    var path = File.ReadAllText(requestFile).Trim();
+                    try { File.Delete(requestFile); } catch { }
                     if (!string.IsNullOrEmpty(path))
-                        BeginInvoke(() => { OpenTab(path); Activate(); });
+                        BeginInvoke(() =>
+                        {
+                            OpenTab(path);
+                            if (IsIconic(Handle)) ShowWindow(Handle, SW_RESTORE);
+                            SetForegroundWindow(Handle);
+                        });
                 }
-                catch (OperationCanceledException) { break; }
-                catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Pipe server error: {ex.Message}"); }
+                catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Open request listener error: {ex.Message}"); }
             }
+            evt.Dispose();
         }, ct);
     }
 
     protected override void OnFormClosed(FormClosedEventArgs e)
     {
-        _pipeCts?.Cancel();
+        _listenerCts?.Cancel();
         base.OnFormClosed(e);
     }
 
