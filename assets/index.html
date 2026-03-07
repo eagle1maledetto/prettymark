@@ -309,11 +309,11 @@ function showWelcome() {
     _el.style.cssText = 'display:flex;justify-content:center;align-items:center;min-height:80vh;';
     _el.innerHTML =
         '<div style="text-align:center;">' +
-        '<h1 style="border:none;padding:0;">' + T('app_name') + '</h1>' +
-        '<p style="color:#656d76;font-size:18px;">' + T('welcome_subtitle') + '</p>' +
+        '<h1 style="border:none;padding:0;">' + _esc(T('app_name')) + '</h1>' +
+        '<p style="color:#656d76;font-size:18px;">' + _esc(T('welcome_subtitle')) + '</p>' +
         '<hr style="margin:24px auto;width:200px;">' +
-        '<p>' + T('welcome_open_instruction') + '</p>' +
-        '<p style="color:#656d76;">' + T('welcome_drag_instruction') + '</p>' +
+        '<p>' + _esc(T('welcome_open_instruction')) + '</p>' +
+        '<p style="color:#656d76;">' + _esc(T('welcome_drag_instruction')) + '</p>' +
         '</div>';
 }
 
@@ -434,8 +434,8 @@ function showAbout() {
         + '<button id="prettymark-about-close" style="position:absolute;top:8px;right:8px;width:28px;height:28px;border:none;background:rgba(0,0,0,0.3);color:#fff;font-size:18px;line-height:1;border-radius:6px;cursor:pointer;z-index:1;">&times;</button>'
         + '<div style="background:' + (bg === '#fff' ? '#f6f8fa' : '#0d1117') + ';padding:24px;flex-shrink:0;"><img src="logo.png" alt="PrettyMark" style="max-width:100%;max-height:40vh;display:block;margin:0 auto;"></div>'
         + '<div style="padding:20px 32px 28px;">'
-        + '<h2 style="margin:0 0 8px 0;color:' + fg + ';">' + T('app_name') + '</h2>'
-        + '<p style="margin:0 0 12px 0;color:' + sub + ';font-size:14px;">' + T('about_description') + '</p>'
+        + '<h2 style="margin:0 0 8px 0;color:' + fg + ';">' + _esc(T('app_name')) + '</h2>'
+        + '<p style="margin:0 0 12px 0;color:' + sub + ';font-size:14px;">' + _esc(T('about_description')) + '</p>'
         + '<a href="https://gitlab.com/eagle1/prettymark" style="color:' + link + ';font-size:14px;">gitlab.com/eagle1/prettymark</a>'
         + '<br><br><button id="prettymark-about-ok" style="padding:6px 20px;border:1px solid ' + btnBorder + ';border-radius:6px;background:' + btnBg + ';color:' + fg + ';cursor:pointer;font-size:14px;">OK</button>'
         + '</div></div>';

@@ -33,7 +33,7 @@
   "welcome_subtitle": "Markdown-Betrachter mit automatischem Neuladen",
   "welcome_open_instruction": "Markdown-Datei \u00f6ffnen: <strong>Datei \u2192 \u00d6ffnen</strong> (Strg+O)",
   "welcome_drag_instruction": "oder Datei hierher ziehen",
-  "about_description": "Markdown-Betrachter mit automatischem<br>Neuladen und Syntaxhervorhebung.",
+  "about_description": "Markdown-Betrachter mit automatischem Neuladen und Syntaxhervorhebung.",
   "menu_recent": "&Zuletzt geöffnet",
   "menu_recent_empty": "(Keine zuletzt geöffneten Dateien)",
   "menu_recent_clear": "Zuletzt geöffnete Dateien löschen",

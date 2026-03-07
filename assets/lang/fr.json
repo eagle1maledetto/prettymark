@@ -33,7 +33,7 @@
   "welcome_subtitle": "Visionneuse Markdown avec rechargement automatique",
   "welcome_open_instruction": "Ouvrir un fichier Markdown\u00a0: <strong>Fichier \u2192 Ouvrir</strong> (Ctrl+O)",
   "welcome_drag_instruction": "ou glissez-d\u00e9posez un fichier ici",
-  "about_description": "Visionneuse Markdown avec rechargement<br>automatique et coloration syntaxique.",
+  "about_description": "Visionneuse Markdown avec rechargement automatique et coloration syntaxique.",
   "menu_recent": "Fichiers &récents",
   "menu_recent_empty": "(Aucun fichier récent)",
   "menu_recent_clear": "Effacer les fichiers récents",

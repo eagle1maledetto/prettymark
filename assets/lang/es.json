@@ -33,7 +33,7 @@
   "welcome_subtitle": "Visor de Markdown con recarga en vivo",
   "welcome_open_instruction": "Abrir un archivo Markdown: <strong>Archivo \u2192 Abrir</strong> (Ctrl+O)",
   "welcome_drag_instruction": "o arrastra y suelta un archivo aqu\u00ed",
-  "about_description": "Visor de Markdown con recarga en vivo<br>y resaltado de sintaxis.",
+  "about_description": "Visor de Markdown con recarga en vivo y resaltado de sintaxis.",
   "menu_recent": "Archivos &recientes",
   "menu_recent_empty": "(Sin archivos recientes)",
   "menu_recent_clear": "Borrar archivos recientes",

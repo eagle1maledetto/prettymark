@@ -33,7 +33,7 @@
   "welcome_subtitle": "Visualizador Markdown com recarga autom\u00e1tica",
   "welcome_open_instruction": "Abra um arquivo Markdown: <strong>Arquivo \u2192 Abrir</strong> (Ctrl+O)",
   "welcome_drag_instruction": "ou arraste e solte um arquivo aqui",
-  "about_description": "Visualizador Markdown com recarga automática<br>e destaque de sintaxe.",
+  "about_description": "Visualizador Markdown com recarga automática e destaque de sintaxe.",
   "menu_recent": "Arquivos &recentes",
   "menu_recent_empty": "(Nenhum arquivo recente)",
   "menu_recent_clear": "Limpar arquivos recentes",

@@ -33,7 +33,7 @@
   "welcome_subtitle": "\u041f\u0440\u043e\u0441\u043c\u043e\u0442\u0440\u0449\u0438\u043a Markdown \u0441 \u0430\u0432\u0442\u043e\u043e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u0435\u043c",
   "welcome_open_instruction": "\u041e\u0442\u043a\u0440\u043e\u0439\u0442\u0435 \u0444\u0430\u0439\u043b Markdown: <strong>\u0424\u0430\u0439\u043b \u2192 \u041e\u0442\u043a\u0440\u044b\u0442\u044c</strong> (Ctrl+O)",
   "welcome_drag_instruction": "\u0438\u043b\u0438 \u043f\u0435\u0440\u0435\u0442\u0430\u0449\u0438\u0442\u0435 \u0444\u0430\u0439\u043b \u0441\u044e\u0434\u0430",
-  "about_description": "Просмотрщик Markdown с автообновлением<br>и подсветкой синтаксиса.",
+  "about_description": "Просмотрщик Markdown с автообновлением и подсветкой синтаксиса.",
   "menu_recent": "&Недавние файлы",
   "menu_recent_empty": "(Нет недавних файлов)",
   "menu_recent_clear": "Очистить недавние файлы",

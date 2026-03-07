@@ -662,7 +662,12 @@ class MainForm : Form
     public static Dictionary<string, string> LoadTranslationsStatic(string lang)
     {
         var langDir = Path.Combine(AppContext.BaseDirectory, "assets", "lang");
+        // Validate lang: alphanumeric/hyphen only, no path traversal
+        if (string.IsNullOrEmpty(lang) || lang.Any(c => c == '.' || c == '/' || c == '\\'))
+            lang = "en";
         var path = Path.Combine(langDir, $"{lang}.json");
+        if (!Path.GetFullPath(path).StartsWith(Path.GetFullPath(langDir) + Path.DirectorySeparatorChar))
+            path = Path.Combine(langDir, "en.json");
         if (!File.Exists(path))
             path = Path.Combine(langDir, "en.json");
         try
