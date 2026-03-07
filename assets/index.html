@@ -223,6 +223,7 @@ body.dark mark.find-match.current { background: #b35c44; }
 
 <script src="marked.min.js"></script>
 <script src="highlight.min.js"></script>
+<script src="purify.min.js"></script>
 <script>
 var _el = document.getElementById('content');
 var _zoom = 1.0;
@@ -284,9 +285,19 @@ function setDarkMode(on) {
 
 function isDarkMode() { return _dark; }
 
+var _purifyConfig = {
+    ALLOWED_TAGS: ['h1','h2','h3','h4','h5','h6','blockquote','p','a','ul','ol',
+                   'li','b','i','strong','em','del','code','hr','br','div',
+                   'table','thead','tbody','tr','th','td','pre','span','img',
+                   'input','sup','sub','dl','dt','dd','details','summary'],
+    ALLOWED_ATTR: ['href','title','alt','src','class','id','type','checked','disabled'],
+    ALLOW_DATA_ATTR: false,
+    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i
+};
+
 function render(md) {
     _el.style.cssText = '';
-    _el.innerHTML = marked.parse(md);
+    _el.innerHTML = DOMPurify.sanitize(marked.parse(md), _purifyConfig);
     document.querySelectorAll('pre code').forEach(function(block) {
         hljs.highlightElement(block);
     });

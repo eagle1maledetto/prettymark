@@ -33,12 +33,25 @@ class AppSettings
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "PrettyMark", "settings.json");
 
+    private static readonly string[] ValidExtensions = { ".md", ".markdown", ".txt" };
+
+    private static bool IsValidFilePath(string p) =>
+        !string.IsNullOrEmpty(p) && Path.IsPathRooted(p) &&
+        ValidExtensions.Contains(Path.GetExtension(p).ToLowerInvariant());
+
     public static AppSettings Load()
     {
         try
         {
             if (File.Exists(SettingsPath))
-                return JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(SettingsPath));
+            {
+                var settings = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(SettingsPath));
+                settings.RecentFiles = settings.RecentFiles?.Where(IsValidFilePath).Take(10).ToList() ?? new();
+                settings.SessionFiles = settings.SessionFiles?.Where(IsValidFilePath).ToList() ?? new();
+                if (!string.IsNullOrEmpty(settings.SessionActiveFile) && !IsValidFilePath(settings.SessionActiveFile))
+                    settings.SessionActiveFile = "";
+                return settings;
+            }
         }
         catch { }
         return new AppSettings();
@@ -243,6 +256,7 @@ class MainForm : Form
             if (e.Uri == "https://app.local/index.html") return;
 
             e.Cancel = true;
+            System.Diagnostics.Debug.WriteLine($"Navigation blocked: {e.Uri}");
 
             if (e.Uri.StartsWith("file:///"))
             {
@@ -305,15 +319,17 @@ class MainForm : Form
     {
         try
         {
+            if (!e.Source.StartsWith("https://app.local/")) return;
             using var doc = JsonDocument.Parse(e.WebMessageAsJson);
             var type = doc.RootElement.GetProperty("type").GetString();
             if (type == "open_url")
             {
                 var url = doc.RootElement.GetProperty("url").GetString();
-                if (url.StartsWith("http://") || url.StartsWith("https://"))
+                if (Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
+                    (uri.Scheme == "http" || uri.Scheme == "https"))
                 {
                     System.Diagnostics.Process.Start(
-                        new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
+                        new System.Diagnostics.ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true });
                 }
             }
             else if (type == "switch_tab")
@@ -358,9 +374,15 @@ class MainForm : Form
 
     // --- Tab operations ---
 
+    private static readonly string[] AllowedExtensions = { ".md", ".markdown", ".txt" };
+
     private async void OpenTab(string path)
     {
         path = Path.GetFullPath(path);
+
+        var ext = Path.GetExtension(path).ToLowerInvariant();
+        if (!AllowedExtensions.Contains(ext)) return;
+        if (!File.Exists(path)) return;
 
         // If file already open, just switch to it
         var existing = tabs.FirstOrDefault(t => string.Equals(t.FilePath, path, StringComparison.OrdinalIgnoreCase));
