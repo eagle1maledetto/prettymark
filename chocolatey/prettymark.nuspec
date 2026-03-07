@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>prettymark</id>
+    <version>1.0.0</version>
+    <title>PrettyMark</title>
+    <authors>eagle1</authors>
+    <owners>eagle1</owners>
+    <projectUrl>https://gitlab.com/eagle1/prettymark</projectUrl>
+    <licenseUrl>https://gitlab.com/eagle1/prettymark/-/blob/main/LICENSE</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <packageSourceUrl>https://gitlab.com/eagle1/prettymark</packageSourceUrl>
+    <tags>markdown viewer markdown-viewer windows webview2 dotnet</tags>
+    <summary>A lightweight, native Markdown viewer for Windows.</summary>
+    <description>PrettyMark is a native Markdown viewer for Windows built with .NET 8 and WebView2.
+
+Features:
+- GitHub-flavored Markdown rendering (tables, fenced code, task lists)
+- Syntax highlighting via highlight.js
+- Live reload on file save
+- Dark mode with persistence
+- Multi-tab support
+- Drag and drop
+- Find bar (Ctrl+F)
+- Print support (Ctrl+P)
+- Multi-language UI (12 languages)
+    </description>
+    <releaseNotes>https://gitlab.com/eagle1/prettymark/-/releases/v1.0.0</releaseNotes>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>

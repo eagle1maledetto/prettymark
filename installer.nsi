@@ -8,7 +8,7 @@
 ; --- Configuration ---
 !define PRODUCT_NAME "PrettyMark"
 !define PRODUCT_VERSION "1.0.0"
-!define PRODUCT_PUBLISHER "Eagle1"
+!define PRODUCT_PUBLISHER "eagle1"
 !define PRODUCT_WEB_SITE "https://gitlab.com/eagle1/prettymark"
 !define PRODUCT_DIR_REGKEY "Software\${PRODUCT_NAME}"
 !define PRODUCT_UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}"
@@ -96,6 +96,7 @@ Section "Install"
     WriteRegStr HKLM "${PRODUCT_UNINST_KEY}" "URLInfoAbout" "${PRODUCT_WEB_SITE}"
     WriteRegStr HKLM "${PRODUCT_UNINST_KEY}" "DisplayIcon" "$INSTDIR\PrettyMark.ico"
     WriteRegStr HKLM "${PRODUCT_UNINST_KEY}" "UninstallString" '"$INSTDIR\Uninstall.exe"'
+    WriteRegStr HKLM "${PRODUCT_UNINST_KEY}" "QuietUninstallString" '"$INSTDIR\Uninstall.exe" /S'
     WriteRegDWORD HKLM "${PRODUCT_UNINST_KEY}" "NoModify" 1
     WriteRegDWORD HKLM "${PRODUCT_UNINST_KEY}" "NoRepair" 1
 
