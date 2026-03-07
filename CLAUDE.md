@@ -29,7 +29,8 @@ Renders `.md` files in a native WinForms window using WebView2 (EdgeChromium), w
 PrettyMark.csproj              # .NET 8 project file
 Program.cs                     # Main application (entry point, COM interop, tab management)
 nuget.config                   # NuGet feed configuration
-build-msix.ps1                 # PowerShell script to build MSIX installer (Windows only)
+installer.nsi                  # NSIS installer script (cross-platform, produces Setup.exe)
+build-msix.ps1                 # PowerShell script to build MSIX installer (Windows only, for Store)
 assets/index.html              # HTML template with JS rendering logic (tabs, drawer, about)
 assets/github-markdown.css     # GitHub-flavored Markdown CSS (light)
 assets/github-markdown-dark.css # GitHub-flavored Markdown CSS (dark)
@@ -54,7 +55,8 @@ test.md                        # Test file for verifying rendering
 ### Prerequisites
 
 1. .NET 8 SDK installed: https://dotnet.microsoft.com/download/dotnet/8.0
-2. Windows SDK (for MSIX only): https://developer.microsoft.com/windows/downloads/windows-sdk/
+2. NSIS (for installer): https://nsis.sourceforge.io/ — also available via `apt install nsis` on Linux
+3. Windows SDK (for MSIX only): https://developer.microsoft.com/windows/downloads/windows-sdk/
 
 ### Run in development
 
@@ -73,7 +75,17 @@ Output: `bin\Release\net8.0-windows\win-x64\publish\PrettyMark.exe`
 
 Cross-compile from Linux: add `-p:EnableWindowsTargeting=true`
 
-### Build MSIX installer (Windows only)
+### Build NSIS installer
+
+```cmd
+makensis installer.nsi
+```
+
+Output: `bin\PrettyMark-Setup-1.0.0-win-x64.exe`
+
+Requires `dotnet publish` first (uses exe from `bin\Release\...`). Works on both Windows and Linux.
+
+### Build MSIX installer (Windows only, for Microsoft Store)
 
 ```powershell
 .\build-msix.ps1 -Version "1.0.0.0"        # unsigned (for Store upload)

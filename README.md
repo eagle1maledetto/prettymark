@@ -30,8 +30,8 @@ A lightweight, native Markdown viewer for Windows with live reload and syntax hi
 
 | Package | Description |
 |---------|-------------|
+| [PrettyMark-Setup-1.0.0-win-x64.exe](https://gitlab.com/api/v4/projects/eagle1%2Fprettymark/packages/generic/prettymark/1.0.0/PrettyMark-Setup-1.0.0-win-x64.exe) | Installer — Start menu, desktop shortcut, file associations, uninstaller |
 | [PrettyMark-portable-win-x64.zip](https://gitlab.com/api/v4/projects/eagle1%2Fprettymark/packages/generic/prettymark/1.0.0/PrettyMark-portable-win-x64.zip) | Portable — unzip and run, no installation needed |
-| [PrettyMark-1.0.0.0-win-x64.msix](https://gitlab.com/api/v4/projects/eagle1%2Fprettymark/packages/generic/prettymark/1.0.0/PrettyMark-1.0.0.0-win-x64.msix) | MSIX installer — Start menu, file associations, uninstaller |
 
 ## Screenshot
 
@@ -60,7 +60,17 @@ dotnet publish -c Release -r win-x64 --self-contained -p:PublishSingleFile=true 
 
 The output is a single `PrettyMark.exe` in `bin\Release\net8.0-windows\win-x64\publish\`.
 
-### Build MSIX installer
+### Build NSIS installer
+
+Requires [NSIS](https://nsis.sourceforge.io/) (works on both Windows and Linux).
+
+```cmd
+makensis installer.nsi
+```
+
+The output is `bin\PrettyMark-Setup-1.0.0-win-x64.exe`.
+
+### Build MSIX installer (for Microsoft Store)
 
 Requires [Windows SDK](https://developer.microsoft.com/windows/downloads/windows-sdk/) (for `makeappx.exe`).
 
