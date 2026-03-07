@@ -53,7 +53,7 @@ class AppSettings
                 return settings;
             }
         }
-        catch { }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Settings load failed: {ex.Message}"); }
         return new AppSettings();
     }
 
@@ -369,7 +369,7 @@ class MainForm : Form
                 settings.Save();
             }
         }
-        catch { }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"WebMessage parse failed: {ex.Message}"); }
     }
 
     // --- Tab operations ---
@@ -675,7 +675,7 @@ class MainForm : Form
             if (File.Exists(path))
                 return JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(path));
         }
-        catch { }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Translation load failed: {ex.Message}"); }
         return new Dictionary<string, string>();
     }
 
