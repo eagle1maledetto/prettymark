@@ -113,6 +113,10 @@ PrettyMark is a WinForms application that hosts a [WebView2](https://developer.m
 - **Settings** (dark mode, sidebar state, language, recent files, session tabs) are persisted in `%AppData%\PrettyMark\settings.json`
 - **i18n** uses JSON files in `assets/lang/` — C# loads the JSON and injects strings into JS via `setStrings()`. Adding a language is just adding a new JSON file
 
+## Contributing
+
+The primary repository is on **[GitLab](https://gitlab.com/eagle1/prettymark)**. Please open issues and merge requests there.
+
 ## License
 
 MIT
