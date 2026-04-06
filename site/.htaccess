@@ -1,0 +1,8 @@
+RewriteEngine On
+RewriteCond %{HTTP:X-Forwarded-Proto} !https
+RewriteCond %{HTTPS} !on
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Download tracking redirects
+RewriteRule ^download/setup$ https://gitlab.com/api/v4/projects/80013616/packages/generic/prettymark/1.0.0/PrettyMark-Setup-1.0.0-win-x64.exe [L,R=302]
+RewriteRule ^download/portable$ https://gitlab.com/api/v4/projects/80013616/packages/generic/prettymark/1.0.0/PrettyMark-1.0.0-win-x64-portable.zip [L,R=302]

@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PrettyMark - Native Markdown Viewer for Windows</title>
+<meta name="description" content="A beautiful native Markdown viewer for Windows with GitHub-style rendering, syntax highlighting, live reload, dark mode, and multi-tab support. Free and open source.">
+<meta property="og:title" content="PrettyMark - Native Markdown Viewer for Windows">
+<meta property="og:description" content="A beautiful native Markdown viewer for Windows with GitHub-style rendering, syntax highlighting, live reload, and dark mode.">
+<meta property="og:image" content="logo.png">
+<meta property="og:type" content="website">
+<link rel="icon" href="favicon.ico">
+<style>
+/* ── Reset & Base ──────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --teal: #1a7a6d;
+  --teal-light: #22a08f;
+  --teal-dark: #145f54;
+  --teal-subtle: #e6f5f2;
+  --gold: #e8b730;
+  --gold-light: #f0cc5e;
+  --gold-subtle: #fdf6e3;
+
+  --bg: #ffffff;
+  --bg-secondary: #f6f8fa;
+  --bg-tertiary: #eef1f5;
+  --surface: #ffffff;
+  --surface-elevated: #ffffff;
+  --border: #d1d9e0;
+  --border-light: #e8ecf0;
+
+  --text: #1f2328;
+  --text-secondary: #545d68;
+  --text-tertiary: #78838e;
+  --text-on-teal: #ffffff;
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,0.12);
+  --shadow-xl: 0 20px 60px rgba(0,0,0,0.15);
+  --shadow-screenshot: 0 16px 48px rgba(0,0,0,0.18), 0 4px 12px rgba(0,0,0,0.08);
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  --font-mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Consolas, monospace;
+
+  --nav-height: 64px;
+  --section-gap: 96px;
+  --content-width: 1120px;
+}
+
+[data-theme="dark"] {
+  --bg: #0d1117;
+  --bg-secondary: #161b22;
+  --bg-tertiary: #1c2128;
+  --surface: #161b22;
+  --surface-elevated: #1c2128;
+  --border: #30363d;
+  --border-light: #21262d;
+
+  --text: #e6edf3;
+  --text-secondary: #9aa5b1;
+  --text-tertiary: #6e7a86;
+
+  --teal-subtle: #0d2926;
+  --gold-subtle: #2a2310;
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.3);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,0.4);
+  --shadow-xl: 0 20px 60px rgba(0,0,0,0.5);
+  --shadow-screenshot: 0 16px 48px rgba(0,0,0,0.5), 0 4px 12px rgba(0,0,0,0.3);
+}
+
+html { scroll-behavior: smooth; scroll-padding-top: calc(var(--nav-height) + 24px); }
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+a { color: var(--teal); text-decoration: none; transition: color 0.2s; }
+a:hover { color: var(--teal-light); }
+
+img { display: block; max-width: 100%; }
+
+.container { max-width: var(--content-width); margin: 0 auto; padding: 0 24px; }
+
+/* ── Animations ────────────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1), transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ── Navbar ────────────────────────────────────────── */
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  height: var(--nav-height);
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  border-bottom: 1px solid var(--border-light);
+  transition: background-color 0.3s, border-color 0.3s;
+}
+[data-theme="dark"] .navbar {
+  background: rgba(13,17,23,0.85);
+}
+.navbar .container {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  gap: 32px;
+}
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--text);
+  flex-shrink: 0;
+}
+.nav-brand img { width: 32px; height: 32px; }
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.nav-links a {
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  transition: color 0.2s, background 0.2s;
+}
+.nav-links a:hover {
+  color: var(--text);
+  background: var(--bg-secondary);
+}
+.theme-toggle {
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+.theme-toggle:hover {
+  background: var(--bg-tertiary);
+  color: var(--text);
+  border-color: var(--border);
+}
+.theme-toggle svg { width: 18px; height: 18px; }
+.theme-toggle .icon-moon { display: none; }
+[data-theme="dark"] .theme-toggle .icon-sun { display: none; }
+[data-theme="dark"] .theme-toggle .icon-moon { display: block; }
+
+/* Mobile nav */
+.nav-menu-btn {
+  display: none;
+  width: 38px; height: 38px;
+  align-items: center; justify-content: center;
+  background: none; border: none; cursor: pointer;
+  color: var(--text-secondary);
+}
+.nav-menu-btn svg { width: 22px; height: 22px; }
+
+@media (max-width: 640px) {
+  .nav-links { display: none; }
+  .nav-links.open {
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    top: var(--nav-height);
+    left: 0;
+    right: 0;
+    background: var(--surface-elevated);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px;
+    box-shadow: var(--shadow-md);
+  }
+  .nav-links.open a { padding: 10px 0; font-size: 16px; }
+  .nav-menu-btn { display: flex; }
+}
+
+/* ── Hero ──────────────────────────────────────────── */
+.hero {
+  padding: 80px 0 64px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.hero::before {
+  content: '';
+  position: absolute;
+  top: -200px; left: 50%; transform: translateX(-50%);
+  width: 800px; height: 600px;
+  background: radial-gradient(ellipse, rgba(26,122,109,0.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+[data-theme="dark"] .hero::before {
+  background: radial-gradient(ellipse, rgba(26,122,109,0.15) 0%, transparent 70%);
+}
+
+.hero-logo {
+  width: 112px; height: 112px;
+  margin: 0 auto 28px;
+  animation: scaleIn 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  filter: drop-shadow(0 4px 12px rgba(26,122,109,0.25));
+}
+
+.hero h1 {
+  font-size: clamp(36px, 6vw, 56px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  margin-bottom: 16px;
+  animation: fadeUp 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both;
+}
+.hero h1 .accent {
+  background: linear-gradient(135deg, var(--teal), var(--teal-light));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.hero-subtitle {
+  font-size: clamp(17px, 2.5vw, 20px);
+  color: var(--text-secondary);
+  max-width: 520px;
+  margin: 0 auto 36px;
+  line-height: 1.5;
+  animation: fadeUp 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 14px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 32px;
+  animation: fadeUp 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.3s both;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 28px;
+  font-size: 15px;
+  font-weight: 600;
+  font-family: var(--font);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+  text-decoration: none;
+}
+.btn svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+.btn-primary {
+  background: var(--teal);
+  color: var(--text-on-teal);
+  box-shadow: 0 2px 8px rgba(26,122,109,0.3);
+}
+.btn-primary:hover {
+  background: var(--teal-light);
+  color: var(--text-on-teal);
+  box-shadow: 0 4px 16px rgba(26,122,109,0.4);
+  transform: translateY(-1px);
+}
+
+.btn-outline {
+  background: transparent;
+  color: var(--text);
+  border: 1.5px solid var(--border);
+}
+.btn-outline:hover {
+  border-color: var(--teal);
+  color: var(--teal);
+  background: var(--teal-subtle);
+}
+
+.hero-badges {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+  animation: fadeUp 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.4s both;
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+  border-radius: 100px;
+  letter-spacing: 0.02em;
+}
+.badge svg { width: 14px; height: 14px; }
+
+/* ── Screenshots ───────────────────────────────────── */
+.screenshots {
+  padding: 48px 0 var(--section-gap);
+}
+.screenshot-showcase {
+  position: relative;
+  max-width: 960px;
+  margin: 0 auto;
+}
+.screenshot-img {
+  width: 100%;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-screenshot);
+  transition: opacity 0.4s, transform 0.4s;
+}
+.screenshot-img.hidden {
+  position: absolute;
+  top: 0; left: 0;
+  opacity: 0;
+  transform: scale(0.98);
+  pointer-events: none;
+}
+
+.screenshot-toggle {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 24px;
+}
+.screenshot-toggle button {
+  padding: 7px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--font);
+  border-radius: 100px;
+  cursor: pointer;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  transition: all 0.2s;
+}
+.screenshot-toggle button:hover {
+  border-color: var(--teal);
+  color: var(--teal);
+}
+.screenshot-toggle button.active {
+  background: var(--teal);
+  color: var(--text-on-teal);
+  border-color: var(--teal);
+}
+
+/* ── Section Headings ──────────────────────────────── */
+.section-header {
+  text-align: center;
+  margin-bottom: 56px;
+}
+.section-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--teal);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 12px;
+}
+.section-label::before, .section-label::after {
+  content: '';
+  width: 24px;
+  height: 1.5px;
+  background: var(--teal);
+  opacity: 0.4;
+}
+.section-title {
+  font-size: clamp(28px, 4vw, 38px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin-bottom: 12px;
+}
+.section-desc {
+  font-size: 17px;
+  color: var(--text-secondary);
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+/* ── Features ──────────────────────────────────────── */
+.features { padding: var(--section-gap) 0; }
+
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+@media (max-width: 1024px) {
+  .features-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 640px) {
+  .features-grid { grid-template-columns: 1fr; }
+}
+
+.feature-card {
+  padding: 28px;
+  background: var(--surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  transition: all 0.25s;
+}
+.feature-card:hover {
+  border-color: var(--border);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.feature-icon {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--teal-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--teal);
+  margin-bottom: 16px;
+}
+.feature-icon svg { width: 22px; height: 22px; }
+
+.feature-card h3 {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  letter-spacing: -0.01em;
+}
+.feature-card p {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+/* ── Download ──────────────────────────────────────── */
+.download {
+  padding: var(--section-gap) 0;
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border-light);
+  transition: background-color 0.3s, border-color 0.3s;
+}
+
+.download-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+  max-width: 720px;
+  margin: 0 auto;
+}
+@media (max-width: 640px) {
+  .download-grid { grid-template-columns: 1fr; }
+}
+
+.download-card {
+  position: relative;
+  background: var(--surface-elevated);
+  border: 1.5px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 32px 28px;
+  text-align: center;
+  transition: all 0.25s;
+}
+.download-card:hover {
+  border-color: var(--border);
+  box-shadow: var(--shadow-lg);
+}
+.download-card.recommended {
+  border-color: var(--teal);
+}
+.download-card.recommended::before {
+  content: 'Recommended';
+  position: absolute;
+  top: -11px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 2px 16px;
+  background: var(--teal);
+  color: var(--text-on-teal);
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 100px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.download-icon {
+  width: 52px; height: 52px;
+  margin: 0 auto 16px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--teal-subtle);
+  border-radius: 50%;
+  color: var(--teal);
+}
+.download-icon svg { width: 24px; height: 24px; }
+
+.download-card h3 {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.download-meta {
+  font-size: 13px;
+  color: var(--text-tertiary);
+  margin-bottom: 20px;
+}
+.download-card .btn { width: 100%; justify-content: center; }
+
+/* ── Package Managers ──────────────────────────────── */
+.pkg-managers { padding: var(--section-gap) 0; }
+
+.pkg-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+@media (max-width: 640px) {
+  .pkg-grid { grid-template-columns: 1fr; }
+}
+
+.pkg-card {
+  background: var(--surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.pkg-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-light);
+  background: var(--bg-secondary);
+}
+.pkg-card-header svg { width: 16px; height: 16px; color: var(--text-tertiary); }
+
+.pkg-code-wrap {
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  gap: 12px;
+}
+.pkg-code {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow-x: auto;
+}
+.pkg-code .prompt { color: var(--teal); user-select: none; }
+
+.copy-btn {
+  flex-shrink: 0;
+  width: 34px; height: 34px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--text-tertiary);
+  transition: all 0.2s;
+}
+.copy-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text);
+  border-color: var(--border);
+}
+.copy-btn svg { width: 16px; height: 16px; }
+.copy-btn .icon-check { display: none; color: var(--teal); }
+.copy-btn.copied .icon-copy { display: none; }
+.copy-btn.copied .icon-check { display: block; }
+
+/* ── Footer ────────────────────────────────────────── */
+.footer {
+  padding: 48px 0 40px;
+  border-top: 1px solid var(--border-light);
+  transition: border-color 0.3s;
+}
+.footer .container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 24px;
+}
+.footer-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--text);
+}
+.footer-brand img { width: 28px; height: 28px; }
+.footer-links {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+.footer-links a {
+  font-size: 14px;
+  color: var(--text-secondary);
+  transition: color 0.2s;
+}
+.footer-links a:hover { color: var(--teal); }
+.footer-credit {
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+@media (max-width: 640px) {
+  .footer .container {
+    flex-direction: column;
+    text-align: center;
+  }
+}
+
+/* ── Background ornament ───────────────────────────── */
+.bg-grid {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  opacity: 0.35;
+  background-image:
+    linear-gradient(var(--border-light) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border-light) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 20%, transparent 70%);
+  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 20%, transparent 70%);
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+[data-theme="dark"] .bg-grid { opacity: 0.15; }
+</style>
+</head>
+<body>
+
+<div class="bg-grid" aria-hidden="true"></div>
+
+<!-- ── Navbar ─────────────────────────────────────── -->
+<nav class="navbar">
+  <div class="container">
+    <a href="#" class="nav-brand">
+      <img src="logo.png" alt="PrettyMark logo" width="32" height="32">
+      <span>PrettyMark</span>
+    </a>
+    <div class="nav-links" id="navLinks">
+      <a href="#install">Install</a>
+      <a href="#features">Features</a>
+      <a href="#download">Download</a>
+    </div>
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+    <button class="nav-menu-btn" id="navMenuBtn" aria-label="Toggle menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+  </div>
+</nav>
+
+<!-- ── Hero ───────────────────────────────────────── -->
+<section class="hero">
+  <div class="container">
+    <img src="logo.png" alt="PrettyMark" class="hero-logo" width="112" height="112">
+    <h1><span class="accent">PrettyMark</span></h1>
+    <p class="hero-subtitle">A beautiful native Markdown viewer for Windows with GitHub-style rendering, live reload, and syntax highlighting.</p>
+    <div class="hero-actions">
+      <a href="/download/setup" class="btn btn-primary">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download Installer
+      </a>
+      <a href="https://gitlab.com/eagle1/prettymark" class="btn btn-outline" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22.65 14.39L12 22.13 1.35 14.39a.84.84 0 0 1-.3-.94l1.22-3.78 2.44-7.51A.42.42 0 0 1 4.82 2a.43.43 0 0 1 .58 0 .42.42 0 0 1 .11.18l2.44 7.49h8.1l2.44-7.51A.42.42 0 0 1 18.6 2a.43.43 0 0 1 .58 0 .42.42 0 0 1 .11.18l2.44 7.51L23 13.45a.84.84 0 0 1-.35.94z"/></svg>
+        View on GitLab
+      </a>
+    </div>
+    <div class="hero-badges">
+      <span class="badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        Windows 10+
+      </span>
+      <span class="badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6v6H9z"/></svg>
+        x64
+      </span>
+      <span class="badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        MIT License
+      </span>
+      <span class="badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        Free
+      </span>
+    </div>
+  </div>
+</section>
+
+<!-- ── Package Managers ───────────────────────────── -->
+<section class="pkg-managers" id="install">
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-label">Install</div>
+      <h2 class="section-title">Install via Package Manager</h2>
+      <p class="section-desc">Prefer the command line? Install with a single command.</p>
+    </div>
+    <div class="pkg-grid reveal">
+      <div class="pkg-card">
+        <div class="pkg-card-header">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+          winget
+        </div>
+        <div class="pkg-code-wrap">
+          <code class="pkg-code"><span class="prompt">&gt;</span> winget install Eagle1.PrettyMark</code>
+          <button class="copy-btn" data-copy="winget install Eagle1.PrettyMark" aria-label="Copy command">
+            <svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            <svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="pkg-card">
+        <div class="pkg-card-header">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+          Chocolatey
+        </div>
+        <div class="pkg-code-wrap">
+          <code class="pkg-code"><span class="prompt">&gt;</span> choco install prettymark</code>
+          <button class="copy-btn" data-copy="choco install prettymark" aria-label="Copy command">
+            <svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            <svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Screenshots ────────────────────────────────── -->
+<section class="screenshots reveal">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-label">Preview</div>
+      <h2 class="section-title">See it in action</h2>
+      <p class="section-desc">GitHub-style rendering with tabs, sidebar, and syntax highlighting.</p>
+    </div>
+    <div class="screenshot-showcase">
+      <img src="screenshot-light.png" alt="PrettyMark light mode" class="screenshot-img" id="ssLight">
+      <img src="screenshot-dark.png" alt="PrettyMark dark mode" class="screenshot-img hidden" id="ssDark">
+    </div>
+    <div class="screenshot-toggle">
+      <button class="active" id="ssBtnLight" aria-label="Show light mode screenshot">Light</button>
+      <button id="ssBtnDark" aria-label="Show dark mode screenshot">Dark</button>
+    </div>
+  </div>
+</section>
+
+<!-- ── Features ───────────────────────────────────── -->
+<section class="features" id="features">
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-label">Features</div>
+      <h2 class="section-title">Everything you need to read Markdown</h2>
+      <p class="section-desc">Packed with features that make reading and reviewing Markdown files a delight.</p>
+    </div>
+    <div class="features-grid">
+
+      <div class="feature-card reveal">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+        </div>
+        <h3>GitHub Markdown</h3>
+        <p>Full GitHub-Flavored Markdown support including tables, task lists, fenced code blocks, and more.</p>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/><line x1="14" y1="4" x2="10" y2="20"/></svg>
+        </div>
+        <h3>Syntax Highlighting</h3>
+        <p>Beautiful code highlighting for 190+ languages powered by highlight.js with GitHub theme.</p>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
+        </div>
+        <h3>Live Reload</h3>
+        <p>Automatically refreshes the view when you save the file. No manual reload needed.</p>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </div>
+        <h3>Dark Mode</h3>
+        <p>Toggle between light and dark themes with a single shortcut. Your preference is remembered.</p>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M12 17v0"/><path d="M2 7h20"/><path d="M12 7v10"/></svg>
+        </div>
+        <h3>Multi-Tab</h3>
+        <p>Open multiple Markdown files simultaneously in a tabbed interface, just like your editor.</p>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+        </div>
+        <h3>Sidebar</h3>
+        <p>Collapsible sidebar drawer shows all open files at a glance. Toggle with Ctrl+B.</p>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+        </div>
+        <h3>Drag & Drop</h3>
+        <p>Drop any .md file onto the window to open it instantly as a new tab.</p>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </div>
+        <h3>Find (Ctrl+F)</h3>
+        <p>Instant text search with match highlighting, counter, and keyboard navigation.</p>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+        </div>
+        <h3>Print</h3>
+        <p>Clean print output via Ctrl+P. Hides all UI chrome and formats content for paper.</p>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="12 8 12 12 14 14"/><circle cx="12" cy="12" r="10"/></svg>
+        </div>
+        <h3>Recent Files</h3>
+        <p>Quick access to your last 10 opened files from the File menu. Persisted across sessions.</p>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        </div>
+        <h3>Session Restore</h3>
+        <p>Reopens all your tabs and active file exactly where you left off on next launch.</p>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        </div>
+        <h3>Multi-Language</h3>
+        <p>Interface translated in 12 languages with auto-detection of your system language.</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ── Download ───────────────────────────────────── -->
+<section class="download" id="download">
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-label">Download</div>
+      <h2 class="section-title">Get PrettyMark</h2>
+      <p class="section-desc">Free, open source, and ready to use. Choose the option that suits you best.</p>
+    </div>
+    <div class="download-grid reveal">
+      <div class="download-card recommended">
+        <div class="download-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        </div>
+        <h3>Installer</h3>
+        <p class="download-meta">Setup wizard &middot; ~47 MB &middot; .exe</p>
+        <a href="/download/setup" class="btn btn-primary">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download Installer
+        </a>
+      </div>
+      <div class="download-card">
+        <div class="download-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v3"/><path d="M21 16v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3"/><path d="M4 12h16"/><path d="M12 3v18"/></svg>
+        </div>
+        <h3>Portable ZIP</h3>
+        <p class="download-meta">No installation &middot; ~66 MB &middot; .zip</p>
+        <a href="/download/portable" class="btn btn-outline">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download ZIP
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Footer ─────────────────────────────────────── -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-brand">
+      <img src="logo.png" alt="PrettyMark" width="28" height="28">
+      <span>PrettyMark</span>
+    </div>
+    <div class="footer-links">
+      <a href="https://gitlab.com/eagle1/prettymark" target="_blank" rel="noopener">Repository</a>
+      <a href="https://gitlab.com/eagle1/prettymark/-/releases" target="_blank" rel="noopener">Releases</a>
+      <a href="https://gitlab.com/eagle1/prettymark/-/blob/main/LICENSE" target="_blank" rel="noopener">License</a>
+    </div>
+    <span class="footer-credit">Made by eagle1</span>
+  </div>
+</footer>
+
+<script>
+/* ── Theme ─────────────────────────────────────────── */
+(function() {
+  var html = document.documentElement;
+  var toggle = document.getElementById('themeToggle');
+  var stored = localStorage.getItem('theme');
+  var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  var theme = stored || (prefersDark ? 'dark' : 'light');
+  html.setAttribute('data-theme', theme);
+  syncScreenshot(theme);
+
+  toggle.addEventListener('click', function() {
+    theme = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+    syncScreenshot(theme);
+  });
+
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+    if (!localStorage.getItem('theme')) {
+      theme = e.matches ? 'dark' : 'light';
+      html.setAttribute('data-theme', theme);
+      syncScreenshot(theme);
+    }
+  });
+
+  function syncScreenshot(t) {
+    var light = document.getElementById('ssLight');
+    var dark = document.getElementById('ssDark');
+    var btnL = document.getElementById('ssBtnLight');
+    var btnD = document.getElementById('ssBtnDark');
+    if (t === 'dark') {
+      dark.classList.remove('hidden'); light.classList.add('hidden');
+      btnD.classList.add('active'); btnL.classList.remove('active');
+    } else {
+      light.classList.remove('hidden'); dark.classList.add('hidden');
+      btnL.classList.add('active'); btnD.classList.remove('active');
+    }
+  }
+
+  /* Screenshot manual toggle */
+  document.getElementById('ssBtnLight').addEventListener('click', function() {
+    document.getElementById('ssLight').classList.remove('hidden');
+    document.getElementById('ssDark').classList.add('hidden');
+    this.classList.add('active');
+    document.getElementById('ssBtnDark').classList.remove('active');
+  });
+  document.getElementById('ssBtnDark').addEventListener('click', function() {
+    document.getElementById('ssDark').classList.remove('hidden');
+    document.getElementById('ssLight').classList.add('hidden');
+    this.classList.add('active');
+    document.getElementById('ssBtnLight').classList.remove('active');
+  });
+})();
+
+/* ── Mobile nav ────────────────────────────────────── */
+document.getElementById('navMenuBtn').addEventListener('click', function() {
+  document.getElementById('navLinks').classList.toggle('open');
+});
+document.querySelectorAll('#navLinks a').forEach(function(a) {
+  a.addEventListener('click', function() {
+    document.getElementById('navLinks').classList.remove('open');
+  });
+});
+
+/* ── Copy buttons ──────────────────────────────────── */
+document.querySelectorAll('.copy-btn').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    var text = this.getAttribute('data-copy');
+    navigator.clipboard.writeText(text).then(function() {
+      btn.classList.add('copied');
+      setTimeout(function() { btn.classList.remove('copied'); }, 2000);
+    });
+  });
+});
+
+/* ── Scroll reveal ─────────────────────────────────── */
+(function() {
+  var reveals = document.querySelectorAll('.reveal');
+  var observer = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+  reveals.forEach(function(el) { observer.observe(el); });
+})();
+</script>
+</body>
+</html>
